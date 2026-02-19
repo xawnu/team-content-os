@@ -27,6 +27,25 @@ npm run dev
 - ContentPattern（可复用内容模式）
 - EpisodePlan / EpisodeMetrics（选题规划与复盘指标）
 
+## YouTube 快增长频道发现 API（已接入）
+
+配置环境变量：
+
+```bash
+YOUTUBE_API_KEY=your_key
+```
+
+本地测试：
+
+```bash
+GET /api/youtube/discover?q=homestead&days=7&region=US&lang=en&maxResults=50&minDurationSec=240
+```
+
+说明：
+- 先用 `search.list(type=video, order=viewCount)` 拉近7天候选视频
+- 再用 `videos.list` 补充 `viewCount + duration`
+- 过滤短视频后按频道聚合，计算 GrowthScore
+
 ## 下一步建议
 
 1. 增加认证（NextAuth / Clerk）
