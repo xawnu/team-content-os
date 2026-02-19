@@ -9,28 +9,28 @@ type Episode = {
   targetKeyword?: string | null;
   plannedDate?: string | null;
   titleOptions: string[];
-  metrics?: {
-    ctr?: number | null;
-    retention30s?: number | null;
-    avgWatchTimeSec?: number | null;
-    views7d?: number | null;
-  } | null;
 };
 
-type PlanResult = {
-  mode?: string;
-  provider?: string;
-  briefs?: Array<{ episodeId: string; topic: string; titleOptions: string[]; brief: { hook: string; body: string[]; cta: string } }>;
+type DetailedScript = {
+  topic: string;
+  title: string;
+  thumbnailCopy: string;
+  opening15s: string[];
+  timeline: Array<{ time: string; segment: string; voiceover: string; visuals: string }>;
+  cta: string;
+  publishCopy: string;
+  tags: string[];
+  differentiation: string[];
+  provider: "ai" | "template";
 };
 
 export default function PlannerPage() {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(false);
-  const [lastPlan, setLastPlan] = useState<PlanResult | null>(null);
   const [seedText, setSeedText] = useState("@homesteadrootss");
-  const [scene, setScene] = useState("yard");
-  const [autoScene, setAutoScene] = useState(true);
-  const [sceneHint, setSceneHint] = useState<string>("");
+  const [direction, setDirection] = useState("同类型视频详细文案");
+  const [script, setScript] = useState<DetailedScript | null>(null);
+  const [error, setError] = useState<string>("");
 
   async function loadEpisodes() {
     const res = await fetch("/api/planner/episodes");
@@ -38,47 +38,23 @@ export default function PlannerPage() {
     if (res.ok && json.ok) setEpisodes(json.episodes ?? []);
   }
 
-  async function generatePlan(mode: "v1" | "v2" = "v2") {
+  async function generateOneScript() {
     setLoading(true);
-    const res = await fetch("/api/planner/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode, count: 10, briefs: 3, ai: true }),
-    });
-    const json = await res.json();
-    if (res.ok && json?.ok) setLastPlan(json);
-    await loadEpisodes();
-    setLoading(false);
-  }
-
-  async function generateSeedPlan() {
-    setLoading(true);
-    const res = await fetch("/api/planner/seed-generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ seedText, count: 10, scene, autoScene, language: "zh", ai: true }),
-    });
-    const json = await res.json();
-    if (res.ok && json?.ok) {
-      setSceneHint(`推断场景: ${json.inferredScene} · 使用场景: ${json.finalScene}`);
-      if (autoScene && json.finalScene) setScene(String(json.finalScene));
-      setLastPlan({
-        mode: "seed-driven",
-        provider: "seed+ai",
-        briefs: (json.generated || []).slice(0, 3).map((g: { id: string; topic: string; titleOptions: string[] }) => ({
-          episodeId: g.id,
-          topic: g.topic,
-          titleOptions: g.titleOptions,
-          brief: {
-            hook: `Why ${g.topic} matters now`,
-            body: ["Step 1", "Step 2", "Step 3"],
-            cta: "Comment next topic",
-          },
-        })),
+    setError("");
+    try {
+      const res = await fetch("/api/planner/script-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seedText, direction, language: "zh" }),
       });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "生成失败");
+      setScript(json.script);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "生成失败");
+    } finally {
+      setLoading(false);
     }
-    await loadEpisodes();
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -91,81 +67,94 @@ export default function PlannerPage() {
         <header className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Planner v2</h1>
-              <p className="text-sm text-zinc-600">按种子频道生成专属周计划 + 查看执行清单</p>
+              <h1 className="text-2xl font-bold">文案生成器</h1>
+              <p className="text-sm text-zinc-600">根据参考频道，生成 1 篇同类型视频详细文案</p>
             </div>
             <div className="flex items-center gap-2">
-              <Link href="/discover" className="rounded border border-zinc-300 px-3 py-1 text-sm">返回发现页</Link>
-            <Link href="/tracker" className="rounded border border-zinc-300 px-3 py-1 text-sm">追踪页</Link>
-              <button
-                onClick={() => generatePlan("v1")}
-                disabled={loading}
-                className="rounded border border-zinc-300 bg-white px-3 py-1 text-sm disabled:opacity-50"
-              >
-                {loading ? "生成中..." : "生成V1"}
-              </button>
-              <button
-                onClick={() => generatePlan("v2")}
-                disabled={loading}
-                className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
-              >
-                {loading ? "生成中..." : "生成V2"}
-              </button>
+              <Link href="/discover" className="rounded border border-zinc-300 px-3 py-1 text-sm">发现页</Link>
+              <Link href="/similar" className="rounded border border-zinc-300 px-3 py-1 text-sm">种子找同类</Link>
             </div>
           </div>
 
           <div className="grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 md:grid-cols-5">
             <label className="space-y-1 md:col-span-3">
-              <span className="text-xs text-zinc-500">种子频道（支持 @handle/链接，多行或逗号分隔）</span>
+              <span className="text-xs text-zinc-500">参考频道（支持 @handle/链接，多行或逗号分隔）</span>
               <textarea
                 value={seedText}
                 onChange={(e) => setSeedText(e.target.value)}
                 className="min-h-20 w-full rounded border border-zinc-300 px-2 py-1 text-sm"
               />
             </label>
-            <label className="space-y-1">
-              <span className="text-xs text-zinc-500">拍摄场景</span>
+            <label className="space-y-1 md:col-span-1">
+              <span className="text-xs text-zinc-500">输出方向</span>
               <input
-                value={scene}
-                onChange={(e) => setScene(e.target.value)}
+                value={direction}
+                onChange={(e) => setDirection(e.target.value)}
                 className="w-full rounded border border-zinc-300 px-2 py-1 text-sm"
               />
-              <label className="mt-1 flex items-center gap-1 text-xs text-zinc-600">
-                <input type="checkbox" checked={autoScene} onChange={(e) => setAutoScene(e.target.checked)} />
-                自动根据频道推断场景
-              </label>
             </label>
             <div className="flex items-end">
               <button
-                onClick={generateSeedPlan}
+                onClick={generateOneScript}
                 disabled={loading}
-                className="w-full rounded bg-blue-700 px-3 py-2 text-sm text-white disabled:opacity-50"
+                className="w-full rounded bg-zinc-900 px-3 py-2 text-sm text-white disabled:opacity-50"
               >
-                {loading ? "生成中..." : "按种子生成计划"}
+                {loading ? "生成中..." : "基于参考频道生成详细文案（1篇）"}
               </button>
             </div>
           </div>
-          {sceneHint ? <p className="text-xs text-zinc-500">{sceneHint}</p> : null}
+          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
         </header>
 
-        {lastPlan?.briefs?.length ? (
-          <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-sm font-semibold text-zinc-700">
-              最新自动Brief（{lastPlan.mode || "v?"}{lastPlan.provider ? ` / ${lastPlan.provider}` : ""}）
-            </h2>
-            <div className="grid gap-3 md:grid-cols-3">
-              {lastPlan.briefs.map((b) => (
-                <article key={b.episodeId} className="rounded-lg border border-zinc-200 p-3 text-sm">
-                  <p className="font-medium">{b.topic}</p>
-                  <p className="mt-1 text-xs text-zinc-600">Hook: {b.brief.hook}</p>
-                  <p className="mt-1 text-xs text-zinc-600">CTA: {b.brief.cta}</p>
-                </article>
-              ))}
+        {script ? (
+          <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">生成结果（{script.provider === "ai" ? "AI" : "模板"}）</h2>
+              <p className="text-xs text-zinc-500">仅生成 1 篇，可直接拍摄</p>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded border border-zinc-200 p-3"><p className="text-xs text-zinc-500">主题</p><p className="font-medium">{script.topic}</p></div>
+              <div className="rounded border border-zinc-200 p-3"><p className="text-xs text-zinc-500">标题</p><p className="font-medium">{script.title}</p></div>
+            </div>
+
+            <div className="rounded border border-zinc-200 p-3">
+              <p className="text-xs text-zinc-500">封面文案</p>
+              <p className="font-medium">{script.thumbnailCopy}</p>
+            </div>
+
+            <div className="rounded border border-zinc-200 p-3">
+              <p className="mb-2 text-xs text-zinc-500">开场前15秒逐句口播</p>
+              <ul className="space-y-1 text-sm">{script.opening15s.map((line, i) => <li key={i}>• {line}</li>)}</ul>
+            </div>
+
+            <div className="rounded border border-zinc-200 p-3">
+              <p className="mb-2 text-xs text-zinc-500">时间轴分镜脚本</p>
+              <div className="space-y-2 text-sm">
+                {script.timeline.map((t, i) => (
+                  <div key={i} className="rounded bg-zinc-50 p-2">
+                    <p><span className="font-medium">{t.time}</span> · {t.segment}</p>
+                    <p className="text-zinc-700">口播：{t.voiceover}</p>
+                    <p className="text-zinc-600">画面：{t.visuals}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded border border-zinc-200 p-3"><p className="text-xs text-zinc-500">收尾 CTA</p><p>{script.cta}</p></div>
+              <div className="rounded border border-zinc-200 p-3"><p className="text-xs text-zinc-500">发布文案</p><p>{script.publishCopy}</p></div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded border border-zinc-200 p-3"><p className="text-xs text-zinc-500">标签</p><p>{script.tags.join(" / ")}</p></div>
+              <div className="rounded border border-zinc-200 p-3"><p className="text-xs text-zinc-500">差异化点（防抄袭）</p><ul className="text-sm space-y-1">{script.differentiation.map((d, i) => <li key={i}>• {d}</li>)}</ul></div>
             </div>
           </section>
         ) : null}
 
         <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+          <div className="border-b border-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-700">历史选题（可作为补充灵感）</div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-zinc-100 text-zinc-600">
@@ -174,7 +163,6 @@ export default function PlannerPage() {
                   <th className="px-3 py-2 text-left">关键词</th>
                   <th className="px-3 py-2 text-left">计划日期</th>
                   <th className="px-3 py-2 text-left">标题候选</th>
-                  <th className="px-3 py-2 text-left">指标</th>
                 </tr>
               </thead>
               <tbody>
@@ -184,9 +172,6 @@ export default function PlannerPage() {
                     <td className="px-3 py-2">{e.targetKeyword || "-"}</td>
                     <td className="px-3 py-2">{e.plannedDate ? new Date(e.plannedDate).toLocaleDateString() : "-"}</td>
                     <td className="px-3 py-2 text-zinc-600">{(e.titleOptions || []).slice(0, 2).join(" / ")}</td>
-                    <td className="px-3 py-2 text-xs text-zinc-600">
-                      CTR: {e.metrics?.ctr ?? "-"} | 30s: {e.metrics?.retention30s ?? "-"} | 7d: {e.metrics?.views7d ?? "-"}
-                    </td>
                   </tr>
                 ))}
               </tbody>
