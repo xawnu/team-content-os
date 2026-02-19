@@ -32,6 +32,14 @@ type NichePreset = {
   windowDays: number;
 };
 
+type SimilarRow = {
+  channelId: string;
+  channelTitle: string;
+  channelUrl: string;
+  similarity: number;
+  matchedTerms: string[];
+};
+
 function num(n: number) {
   return new Intl.NumberFormat("en-US").format(n);
 }
@@ -45,6 +53,9 @@ export default function DiscoverPage() {
   const [error, setError] = useState<string | null>(null);
   const [niches, setNiches] = useState<NichePreset[]>([]);
   const [selectedNiche, setSelectedNiche] = useState("homestead");
+  const [seedChannelId, setSeedChannelId] = useState("");
+  const [similarItems, setSimilarItems] = useState<SimilarRow[]>([]);
+  const [similarLoading, setSimilarLoading] = useState(false);
 
   const top = useMemo(() => data?.channels?.[0], [data]);
 
@@ -91,6 +102,23 @@ export default function DiscoverPage() {
       setData(null);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function runSimilar() {
+    if (!seedChannelId.trim()) return;
+    setSimilarLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/youtube/similar?channelId=${encodeURIComponent(seedChannelId.trim())}`);
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "相似频道请求失败");
+      setSimilarItems(json.items ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "未知错误");
+      setSimilarItems([]);
+    } finally {
+      setSimilarLoading(false);
     }
   }
 
@@ -160,6 +188,57 @@ export default function DiscoverPage() {
               </button>
             </div>
           </div>
+        </section>
+
+        <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <h2 className="mb-3 text-sm font-semibold text-zinc-700">种子频道找同类</h2>
+          <div className="grid gap-3 md:grid-cols-5">
+            <label className="space-y-1 text-sm md:col-span-4">
+              <span className="text-zinc-600">输入 channelId（例如 UCxxxxxxxx）</span>
+              <input
+                value={seedChannelId}
+                onChange={(e) => setSeedChannelId(e.target.value)}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2"
+                placeholder="UCUdlMZ02XYLVeknNEY8F4vw"
+              />
+            </label>
+            <div className="flex items-end">
+              <button
+                onClick={runSimilar}
+                disabled={similarLoading}
+                className="w-full rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50"
+              >
+                {similarLoading ? "匹配中..." : "找相似频道"}
+              </button>
+            </div>
+          </div>
+
+          {!!similarItems.length && (
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-zinc-100 text-zinc-600">
+                  <tr>
+                    <th className="px-3 py-2 text-left">频道</th>
+                    <th className="px-3 py-2 text-right">相似度</th>
+                    <th className="px-3 py-2 text-left">匹配词</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {similarItems.map((row) => (
+                    <tr key={row.channelId} className="border-t border-zinc-100">
+                      <td className="px-3 py-2 font-medium">
+                        <a href={row.channelUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
+                          {row.channelTitle}
+                        </a>
+                      </td>
+                      <td className="px-3 py-2 text-right">{row.similarity}%</td>
+                      <td className="px-3 py-2 text-zinc-600">{row.matchedTerms.join(", ")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         {error && <div className="rounded-lg bg-rose-100 p-3 text-sm text-rose-700">{error}</div>}
