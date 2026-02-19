@@ -73,6 +73,14 @@ type RunDetail = {
   candidates: ChannelRow[];
 };
 
+type AnalyzeResult = {
+  runId: string;
+  query: string;
+  topPatterns: { pattern: string; count: number }[];
+  topKeywords: { keyword: string; count: number }[];
+  riskHits: { word: string; count: number }[];
+};
+
 function num(n: number) {
   return new Intl.NumberFormat("en-US").format(n);
 }
@@ -101,6 +109,8 @@ export default function DiscoverPage() {
   const [historyTotalPages, setHistoryTotalPages] = useState(1);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [selectedRun, setSelectedRun] = useState<RunDetail | null>(null);
+  const [analysis, setAnalysis] = useState<AnalyzeResult | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
 
   const top = useMemo(() => data?.channels?.[0], [data]);
 
@@ -161,6 +171,27 @@ export default function DiscoverPage() {
         candidates: json.run.candidates ?? [],
       });
     }
+    loadAnalysis(runId);
+  }
+
+  async function loadAnalysis(runId?: string) {
+    setAnalysisLoading(true);
+    try {
+      const url = runId ? `/api/youtube/analyze?runId=${encodeURIComponent(runId)}` : "/api/youtube/analyze";
+      const res = await fetch(url);
+      const json = await res.json();
+      if (res.ok && json?.ok) {
+        setAnalysis({
+          runId: json.runId,
+          query: json.query,
+          topPatterns: json.topPatterns ?? [],
+          topKeywords: json.topKeywords ?? [],
+          riskHits: json.riskHits ?? [],
+        });
+      }
+    } finally {
+      setAnalysisLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -175,6 +206,7 @@ export default function DiscoverPage() {
     loadNiches();
     loadHistory();
     loadSimilarHistory();
+    loadAnalysis();
   }, []);
 
   useEffect(() => {
@@ -204,6 +236,7 @@ export default function DiscoverPage() {
       if (!res.ok || !json.ok) throw new Error(json.error || "请求失败");
       setData(json);
       loadHistory(1);
+      if (json.runId) loadAnalysis(json.runId);
     } catch (e) {
       setError(e instanceof Error ? e.message : "未知错误");
       setData(null);
@@ -519,6 +552,47 @@ export default function DiscoverPage() {
               </button>
             </div>
           </div>
+        </section>
+
+        <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-zinc-700">Analyzer v1（标题模式/关键词/风险词）</h2>
+            <button onClick={() => loadAnalysis(selectedRunId ?? undefined)} className="text-xs text-zinc-600 underline">
+              重新分析
+            </button>
+          </div>
+          {analysisLoading ? (
+            <p className="text-sm text-zinc-500">分析中...</p>
+          ) : analysis ? (
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <p className="mb-2 text-xs text-zinc-500">Top 标题模式</p>
+                <ul className="space-y-1 text-sm text-zinc-700">
+                  {analysis.topPatterns.slice(0, 6).map((p, i) => (
+                    <li key={`${p.pattern}-${i}`}>• {p.pattern} ({p.count})</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="mb-2 text-xs text-zinc-500">Top 关键词</p>
+                <ul className="space-y-1 text-sm text-zinc-700">
+                  {analysis.topKeywords.slice(0, 10).map((k) => (
+                    <li key={k.keyword}>• {k.keyword} ({k.count})</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="mb-2 text-xs text-zinc-500">风险词命中</p>
+                <ul className="space-y-1 text-sm text-zinc-700">
+                  {analysis.riskHits.length ? analysis.riskHits.map((r) => (
+                    <li key={r.word}>• {r.word} ({r.count})</li>
+                  )) : <li>• 暂无明显风险词</li>}
+                </ul>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-500">暂无可分析数据，请先运行一次增长发现。</p>
+          )}
         </section>
 
         {selectedRun && (

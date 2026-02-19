@@ -48,6 +48,7 @@ GET /api/youtube/discover?q=homestead&niche=homestead&days=7&region=US&lang=en&m
 - `persist=1` 时会写入 `DiscoverRun / DiscoverCandidate` 表，支持后续复盘追踪
 - 赛道模板接口：`GET /api/niches`
 - 种子频道找同类：`GET /api/youtube/similar?seed=<UC...|@handle|url>`
+- 标题/关键词分析：`GET /api/youtube/analyze?runId=<discoverRunId可选>`
 
 ## 下一步建议
 
