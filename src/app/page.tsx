@@ -72,6 +72,12 @@ export default async function Home() {
             >
               打开增长频道榜单
             </Link>
+            <Link
+              href="/planner"
+              className="inline-flex rounded-full bg-blue-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-600"
+            >
+              打开内容规划器
+            </Link>
           </div>
         </header>
 

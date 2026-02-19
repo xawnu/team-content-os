@@ -282,6 +282,9 @@ export default function DiscoverPage() {
             <a href="#history" className="rounded-md border border-zinc-300 px-3 py-1.5 text-zinc-700 hover:bg-zinc-100">
               历史记录
             </a>
+            <Link href="/planner" className="rounded-md border border-zinc-300 px-3 py-1.5 text-zinc-700 hover:bg-zinc-100">
+              规划器
+            </Link>
           </div>
         </header>
 
