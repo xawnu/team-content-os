@@ -50,6 +50,13 @@ type RunRow = {
   _count: { candidates: number };
 };
 
+type RunDetail = {
+  id: string;
+  query: string;
+  createdAt: string;
+  candidates: ChannelRow[];
+};
+
 function num(n: number) {
   return new Intl.NumberFormat("en-US").format(n);
 }
@@ -68,6 +75,8 @@ export default function DiscoverPage() {
   const [similarLoading, setSimilarLoading] = useState(false);
   const [runs, setRuns] = useState<RunRow[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [selectedRun, setSelectedRun] = useState<RunDetail | null>(null);
 
   const top = useMemo(() => data?.channels?.[0], [data]);
 
@@ -79,6 +88,20 @@ export default function DiscoverPage() {
       if (res.ok && json?.ok) setRuns(json.runs ?? []);
     } finally {
       setHistoryLoading(false);
+    }
+  }
+
+  async function loadRunDetail(runId: string) {
+    setSelectedRunId(runId);
+    const res = await fetch(`/api/youtube/discover/history?runId=${encodeURIComponent(runId)}`);
+    const json = await res.json();
+    if (res.ok && json?.ok && json?.run) {
+      setSelectedRun({
+        id: json.run.id,
+        query: json.run.query,
+        createdAt: json.run.createdAt,
+        candidates: json.run.candidates ?? [],
+      });
     }
   }
 
@@ -290,7 +313,13 @@ export default function DiscoverPage() {
                 </thead>
                 <tbody>
                   {runs.map((r) => (
-                    <tr key={r.id} className="border-t border-zinc-100">
+                    <tr
+                      key={r.id}
+                      className={`border-t border-zinc-100 cursor-pointer hover:bg-zinc-50 ${
+                        selectedRunId === r.id ? "bg-zinc-50" : ""
+                      }`}
+                      onClick={() => loadRunDetail(r.id)}
+                    >
                       <td className="px-3 py-2">{new Date(r.createdAt).toLocaleString()}</td>
                       <td className="px-3 py-2">{r.query}</td>
                       <td className="px-3 py-2 text-right">{r.days}d</td>
@@ -306,6 +335,44 @@ export default function DiscoverPage() {
             <p className="text-sm text-zinc-500">暂无历史记录，先运行一次分析。</p>
           )}
         </section>
+
+        {selectedRun && (
+          <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+            <div className="border-b border-zinc-100 px-4 py-3">
+              <h3 className="text-sm font-semibold text-zinc-700">
+                历史批次详情：{selectedRun.query} · {new Date(selectedRun.createdAt).toLocaleString()}
+              </h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-zinc-100 text-zinc-600">
+                  <tr>
+                    <th className="px-3 py-2 text-left">频道</th>
+                    <th className="px-3 py-2 text-right">Score</th>
+                    <th className="px-3 py-2 text-right">7天视频数</th>
+                    <th className="px-3 py-2 text-right">7天总播放</th>
+                    <th className="px-3 py-2 text-right">中位播放</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedRun.candidates.map((row) => (
+                    <tr key={`${selectedRun.id}-${row.channelId}`} className="border-t border-zinc-100">
+                      <td className="px-3 py-2 font-medium">
+                        <a href={row.channelUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
+                          {row.channelTitle}
+                        </a>
+                      </td>
+                      <td className="px-3 py-2 text-right font-semibold">{row.score}</td>
+                      <td className="px-3 py-2 text-right">{num(row.videoCount7d)}</td>
+                      <td className="px-3 py-2 text-right">{num(row.viewsSum7d)}</td>
+                      <td className="px-3 py-2 text-right">{num(row.viewsMedian7d)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {error && <div className="rounded-lg bg-rose-100 p-3 text-sm text-rose-700">{error}</div>}
 
