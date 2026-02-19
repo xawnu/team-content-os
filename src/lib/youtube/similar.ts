@@ -175,6 +175,7 @@ export async function findSimilarChannels(seedInput: string) {
   rows.sort((a, b) => b.similarity - a.similarity);
 
   return {
+    seedInput,
     seedChannelId,
     query,
     seedTerms,

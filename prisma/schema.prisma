@@ -205,3 +205,29 @@ model NicheConfig {
 
   @@index([active])
 }
+
+model SimilarRun {
+  id            String   @id @default(cuid())
+  seedInput     String
+  seedChannelId String
+  query         String
+  seedTerms     Json
+  createdAt     DateTime @default(now())
+  items         SimilarCandidate[]
+
+  @@index([createdAt])
+}
+
+model SimilarCandidate {
+  id           String   @id @default(cuid())
+  runId        String
+  channelId    String
+  channelTitle String
+  channelUrl   String
+  similarity   Float
+  matchedTerms Json
+  createdAt    DateTime @default(now())
+  run          SimilarRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+}

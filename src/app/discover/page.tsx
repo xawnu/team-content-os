@@ -40,6 +40,22 @@ type SimilarRow = {
   matchedTerms: string[];
 };
 
+type SimilarRunRow = {
+  id: string;
+  seedInput: string;
+  query: string;
+  createdAt: string;
+  _count: { items: number };
+};
+
+type SimilarRunDetail = {
+  id: string;
+  seedInput: string;
+  query: string;
+  createdAt: string;
+  items: SimilarRow[];
+};
+
 type RunRow = {
   id: string;
   query: string;
@@ -73,6 +89,12 @@ export default function DiscoverPage() {
   const [seedChannelId, setSeedChannelId] = useState("");
   const [similarItems, setSimilarItems] = useState<SimilarRow[]>([]);
   const [similarLoading, setSimilarLoading] = useState(false);
+  const [similarRuns, setSimilarRuns] = useState<SimilarRunRow[]>([]);
+  const [similarHistoryPage, setSimilarHistoryPage] = useState(1);
+  const [similarHistoryTotalPages, setSimilarHistoryTotalPages] = useState(1);
+  const [similarHistoryLoading, setSimilarHistoryLoading] = useState(false);
+  const [selectedSimilarRunId, setSelectedSimilarRunId] = useState<string | null>(null);
+  const [selectedSimilarRun, setSelectedSimilarRun] = useState<SimilarRunDetail | null>(null);
   const [runs, setRuns] = useState<RunRow[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
@@ -94,6 +116,36 @@ export default function DiscoverPage() {
       }
     } finally {
       setHistoryLoading(false);
+    }
+  }
+
+  async function loadSimilarHistory(page = similarHistoryPage) {
+    setSimilarHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/youtube/similar/history?page=${page}&pageSize=10`);
+      const json = await res.json();
+      if (res.ok && json?.ok) {
+        setSimilarRuns(json.runs ?? []);
+        setSimilarHistoryPage(json.page ?? page);
+        setSimilarHistoryTotalPages(json.totalPages ?? 1);
+      }
+    } finally {
+      setSimilarHistoryLoading(false);
+    }
+  }
+
+  async function loadSimilarRunDetail(runId: string) {
+    setSelectedSimilarRunId(runId);
+    const res = await fetch(`/api/youtube/similar/history?runId=${encodeURIComponent(runId)}`);
+    const json = await res.json();
+    if (res.ok && json?.ok && json?.run) {
+      setSelectedSimilarRun({
+        id: json.run.id,
+        seedInput: json.run.seedInput,
+        query: json.run.query,
+        createdAt: json.run.createdAt,
+        items: json.run.items ?? [],
+      });
     }
   }
 
@@ -122,6 +174,7 @@ export default function DiscoverPage() {
 
     loadNiches();
     loadHistory();
+    loadSimilarHistory();
   }, []);
 
   useEffect(() => {
@@ -164,10 +217,11 @@ export default function DiscoverPage() {
     setSimilarLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/youtube/similar?channelId=${encodeURIComponent(seedChannelId.trim())}`);
+      const res = await fetch(`/api/youtube/similar?seed=${encodeURIComponent(seedChannelId.trim())}&persist=1`);
       const json = await res.json();
       if (!res.ok || !json?.ok) throw new Error(json?.error || "相似频道请求失败");
       setSimilarItems(json.items ?? []);
+      loadSimilarHistory(1);
     } catch (e) {
       setError(e instanceof Error ? e.message : "未知错误");
       setSimilarItems([]);
@@ -298,6 +352,104 @@ export default function DiscoverPage() {
               </table>
             </div>
           )}
+
+          <div className="mt-6 border-t border-zinc-100 pt-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-zinc-700">同类匹配历史</h3>
+              <button onClick={() => loadSimilarHistory(similarHistoryPage)} className="text-xs text-zinc-600 underline">
+                刷新
+              </button>
+            </div>
+
+            {similarHistoryLoading ? (
+              <p className="text-sm text-zinc-500">加载中...</p>
+            ) : similarRuns.length ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-zinc-100 text-zinc-600">
+                    <tr>
+                      <th className="px-3 py-2 text-left">时间</th>
+                      <th className="px-3 py-2 text-left">种子输入</th>
+                      <th className="px-3 py-2 text-left">检索词</th>
+                      <th className="px-3 py-2 text-right">结果数</th>
+                      <th className="px-3 py-2 text-left">Run ID</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {similarRuns.map((r) => (
+                      <tr
+                        key={r.id}
+                        className={`border-t border-zinc-100 cursor-pointer hover:bg-zinc-50 ${
+                          selectedSimilarRunId === r.id ? "bg-zinc-50" : ""
+                        }`}
+                        onClick={() => loadSimilarRunDetail(r.id)}
+                      >
+                        <td className="px-3 py-2">{new Date(r.createdAt).toLocaleString()}</td>
+                        <td className="px-3 py-2">{r.seedInput}</td>
+                        <td className="px-3 py-2">{r.query}</td>
+                        <td className="px-3 py-2 text-right">{r._count.items}</td>
+                        <td className="px-3 py-2 text-xs text-zinc-500">{r.id}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-zinc-500">暂无历史记录。</p>
+            )}
+
+            <div className="mt-3 flex items-center justify-between text-xs text-zinc-600">
+              <span>
+                第 {similarHistoryPage} / {similarHistoryTotalPages} 页
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => loadSimilarHistory(Math.max(1, similarHistoryPage - 1))}
+                  disabled={similarHistoryPage <= 1 || similarHistoryLoading}
+                  className="rounded border border-zinc-300 px-2 py-1 disabled:opacity-40"
+                >
+                  上一页
+                </button>
+                <button
+                  onClick={() => loadSimilarHistory(Math.min(similarHistoryTotalPages, similarHistoryPage + 1))}
+                  disabled={similarHistoryPage >= similarHistoryTotalPages || similarHistoryLoading}
+                  className="rounded border border-zinc-300 px-2 py-1 disabled:opacity-40"
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+
+            {selectedSimilarRun && (
+              <div className="mt-4 overflow-x-auto rounded-lg border border-zinc-200">
+                <div className="border-b border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+                  历史详情：{selectedSimilarRun.seedInput} · {new Date(selectedSimilarRun.createdAt).toLocaleString()}
+                </div>
+                <table className="min-w-full text-sm">
+                  <thead className="bg-zinc-100 text-zinc-600">
+                    <tr>
+                      <th className="px-3 py-2 text-left">频道</th>
+                      <th className="px-3 py-2 text-right">相似度</th>
+                      <th className="px-3 py-2 text-left">匹配词</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedSimilarRun.items.map((i) => (
+                      <tr key={`${selectedSimilarRun.id}-${i.channelId}`} className="border-t border-zinc-100">
+                        <td className="px-3 py-2">
+                          <a href={i.channelUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
+                            {i.channelTitle}
+                          </a>
+                        </td>
+                        <td className="px-3 py-2 text-right">{i.similarity}%</td>
+                        <td className="px-3 py-2 text-zinc-600">{i.matchedTerms.join(", ")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </section>
 
         <section id="history" className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
