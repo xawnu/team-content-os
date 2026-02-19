@@ -84,6 +84,12 @@ export default async function Home() {
             >
               打开数据追踪
             </Link>
+            <Link
+              href="/reports"
+              className="inline-flex rounded-full bg-violet-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-violet-600"
+            >
+              打开自动周报
+            </Link>
           </div>
         </header>
 

@@ -69,6 +69,7 @@ export default function TrackerPage() {
           <div className="flex items-center gap-2">
             <Link href="/planner" className="rounded border border-zinc-300 px-3 py-1 text-sm">规划器</Link>
             <Link href="/discover" className="rounded border border-zinc-300 px-3 py-1 text-sm">发现页</Link>
+            <Link href="/reports" className="rounded border border-zinc-300 px-3 py-1 text-sm">周报</Link>
           </div>
         </header>
 
