@@ -26,17 +26,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ok: true, run });
     }
 
-    const runs = await prisma.discoverRun.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 30,
-      include: {
-        _count: {
-          select: { candidates: true },
-        },
-      },
-    });
+    const page = Math.max(Number(searchParams.get("page") || 1), 1);
+    const pageSize = Math.min(Math.max(Number(searchParams.get("pageSize") || 10), 1), 50);
+    const skip = (page - 1) * pageSize;
 
-    return NextResponse.json({ ok: true, runs });
+    const [total, runs] = await Promise.all([
+      prisma.discoverRun.count(),
+      prisma.discoverRun.findMany({
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
+        include: {
+          _count: {
+            select: { candidates: true },
+          },
+        },
+      }),
+    ]);
+
+    return NextResponse.json({ ok: true, runs, page, pageSize, total, totalPages: Math.ceil(total / pageSize) });
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "Unknown error" },

@@ -75,17 +75,23 @@ export default function DiscoverPage() {
   const [similarLoading, setSimilarLoading] = useState(false);
   const [runs, setRuns] = useState<RunRow[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [selectedRun, setSelectedRun] = useState<RunDetail | null>(null);
 
   const top = useMemo(() => data?.channels?.[0], [data]);
 
-  async function loadHistory() {
+  async function loadHistory(page = historyPage) {
     setHistoryLoading(true);
     try {
-      const res = await fetch("/api/youtube/discover/history");
+      const res = await fetch(`/api/youtube/discover/history?page=${page}&pageSize=10`);
       const json = await res.json();
-      if (res.ok && json?.ok) setRuns(json.runs ?? []);
+      if (res.ok && json?.ok) {
+        setRuns(json.runs ?? []);
+        setHistoryPage(json.page ?? page);
+        setHistoryTotalPages(json.totalPages ?? 1);
+      }
     } finally {
       setHistoryLoading(false);
     }
@@ -144,7 +150,7 @@ export default function DiscoverPage() {
       const json = (await res.json()) as DiscoverResponse;
       if (!res.ok || !json.ok) throw new Error(json.error || "请求失败");
       setData(json);
-      loadHistory();
+      loadHistory(1);
     } catch (e) {
       setError(e instanceof Error ? e.message : "未知错误");
       setData(null);
@@ -292,7 +298,7 @@ export default function DiscoverPage() {
         <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-zinc-700">历史抓取记录</h2>
-            <button onClick={loadHistory} className="text-xs text-zinc-600 underline">
+            <button onClick={() => loadHistory(historyPage)} className="text-xs text-zinc-600 underline">
               刷新
             </button>
           </div>
@@ -334,6 +340,28 @@ export default function DiscoverPage() {
           ) : (
             <p className="text-sm text-zinc-500">暂无历史记录，先运行一次分析。</p>
           )}
+
+          <div className="mt-3 flex items-center justify-between text-xs text-zinc-600">
+            <span>
+              第 {historyPage} / {historyTotalPages} 页
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => loadHistory(Math.max(1, historyPage - 1))}
+                disabled={historyPage <= 1 || historyLoading}
+                className="rounded border border-zinc-300 px-2 py-1 disabled:opacity-40"
+              >
+                上一页
+              </button>
+              <button
+                onClick={() => loadHistory(Math.min(historyTotalPages, historyPage + 1))}
+                disabled={historyPage >= historyTotalPages || historyLoading}
+                className="rounded border border-zinc-300 px-2 py-1 disabled:opacity-40"
+              >
+                下一页
+              </button>
+            </div>
+          </div>
         </section>
 
         {selectedRun && (
