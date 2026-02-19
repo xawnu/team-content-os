@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -51,18 +52,26 @@ export default async function Home() {
     <main className="min-h-screen bg-zinc-50 p-8 text-zinc-900">
       <div className="mx-auto max-w-5xl space-y-8">
         <header className="space-y-3">
-          <h1 className="text-3xl font-bold">Team Content OS</h1>
+          <h1 className="text-3xl font-bold">youtube.9180.net</h1>
           <p className="text-zinc-600">
             多人协作的 YouTube 对标情报 + 结构化内容规划系统（Next.js + PostgreSQL + Prisma）
           </p>
-          <div
-            className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${
-              stats.dbConnected
-                ? "bg-emerald-100 text-emerald-700"
-                : "bg-amber-100 text-amber-700"
-            }`}
-          >
-            {stats.dbConnected ? "数据库已连接" : "数据库未连接（请配置 DATABASE_URL 并迁移）"}
+          <div className="flex flex-wrap items-center gap-3">
+            <div
+              className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${
+                stats.dbConnected
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-amber-100 text-amber-700"
+              }`}
+            >
+              {stats.dbConnected ? "数据库已连接" : "数据库未连接（请配置 DATABASE_URL 并迁移）"}
+            </div>
+            <Link
+              href="/discover"
+              className="inline-flex rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-zinc-700"
+            >
+              打开增长频道榜单
+            </Link>
           </div>
         </header>
 
