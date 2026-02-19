@@ -73,6 +73,37 @@ async function ytFetch<T>(path: string, params: Record<string, string | number |
   return res.json() as Promise<T>;
 }
 
+async function resolveChannelId(input: string): Promise<string> {
+  const raw = input.trim();
+  if (!raw) throw new Error("channel input is required");
+
+  if (/^UC[\w-]{20,}$/.test(raw)) return raw;
+
+  let handleOrQuery = raw;
+
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    const url = new URL(raw);
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (parts[0] === "channel" && parts[1]) return parts[1];
+    if (parts[0]?.startsWith("@")) handleOrQuery = parts[0];
+    else handleOrQuery = parts.join(" ");
+  }
+
+  if (handleOrQuery.startsWith("@")) handleOrQuery = handleOrQuery.slice(1);
+
+  const search = await ytFetch<{ items: SearchItem[] }>("/search", {
+    part: "snippet",
+    type: "channel",
+    q: handleOrQuery,
+    maxResults: 1,
+  });
+
+  const channelId = search.items?.[0]?.snippet?.channelId;
+  if (!channelId) throw new Error("Unable to resolve channelId from input");
+
+  return channelId;
+}
+
 async function getRecentTitles(channelId: string): Promise<string[]> {
   const search = await ytFetch<{ items: { id?: { videoId?: string } }[] }>("/search", {
     part: "id",
@@ -93,7 +124,8 @@ async function getRecentTitles(channelId: string): Promise<string[]> {
   return (videos.items ?? []).map((v) => v.snippet?.title ?? "").filter(Boolean);
 }
 
-export async function findSimilarChannels(seedChannelId: string) {
+export async function findSimilarChannels(seedInput: string) {
+  const seedChannelId = await resolveChannelId(seedInput);
   const seedTitles = await getRecentTitles(seedChannelId);
   const seedTerms = topTerms(seedTitles);
   const query = seedTerms.slice(0, 4).join(" ") || "homestead";

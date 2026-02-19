@@ -219,12 +219,12 @@ export default function DiscoverPage() {
           <h2 className="mb-3 text-sm font-semibold text-zinc-700">种子频道找同类</h2>
           <div className="grid gap-3 md:grid-cols-5">
             <label className="space-y-1 text-sm md:col-span-4">
-              <span className="text-zinc-600">输入 channelId（例如 UCxxxxxxxx）</span>
+              <span className="text-zinc-600">输入 channelId / @handle / 频道链接</span>
               <input
                 value={seedChannelId}
                 onChange={(e) => setSeedChannelId(e.target.value)}
                 className="w-full rounded-lg border border-zinc-300 px-3 py-2"
-                placeholder="UCUdlMZ02XYLVeknNEY8F4vw"
+                placeholder="@homesteadrootss 或 https://www.youtube.com/@homesteadrootss"
               />
             </label>
             <div className="flex items-end">

@@ -6,10 +6,13 @@ export const runtime = "nodejs";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const channelId = searchParams.get("channelId") || "";
+    const channelId = searchParams.get("channelId") || searchParams.get("seed") || "";
 
     if (!channelId) {
-      return NextResponse.json({ ok: false, error: "channelId is required" }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "channelId/seed is required" },
+        { status: 400 },
+      );
     }
 
     const data = await findSimilarChannels(channelId);

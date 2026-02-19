@@ -47,7 +47,7 @@ GET /api/youtube/discover?q=homestead&niche=homestead&days=7&region=US&lang=en&m
 - 过滤短视频后按频道聚合，计算 GrowthScore
 - `persist=1` 时会写入 `DiscoverRun / DiscoverCandidate` 表，支持后续复盘追踪
 - 赛道模板接口：`GET /api/niches`
-- 种子频道找同类：`GET /api/youtube/similar?channelId=<UC...>`
+- 种子频道找同类：`GET /api/youtube/similar?seed=<UC...|@handle|url>`
 
 ## 下一步建议
 
