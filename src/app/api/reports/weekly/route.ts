@@ -19,7 +19,7 @@ export async function GET() {
       take: 200,
     });
 
-    const measured = episodes.filter((e) => e.metrics && (e.metrics.ctr != null || e.metrics.retention30s != null || e.metrics.views7d != null));
+    const measured: typeof episodes = episodes.filter((e: (typeof episodes)[number]) => e.metrics && (e.metrics.ctr != null || e.metrics.retention30s != null || e.metrics.views7d != null));
 
     const byKeyword = new Map<string, { ctr: number[]; retention: number[]; views: number[]; count: number }>();
     for (const e of measured) {
@@ -55,8 +55,8 @@ export async function GET() {
       summary: {
         createdEpisodes: episodes.length,
         measuredEpisodes: measured.length,
-        avgCtr: Number(avg(measured.map((e) => e.metrics?.ctr ?? 0).filter((n) => n > 0)).toFixed(2)),
-        avgRetention30s: Number(avg(measured.map((e) => e.metrics?.retention30s ?? 0).filter((n) => n > 0)).toFixed(2)),
+        avgCtr: Number(avg(measured.map((e: (typeof episodes)[number]) => e.metrics?.ctr ?? 0).filter((n: number) => n > 0)).toFixed(2)),
+        avgRetention30s: Number(avg(measured.map((e: (typeof episodes)[number]) => e.metrics?.retention30s ?? 0).filter((n: number) => n > 0)).toFixed(2)),
       },
       winners: top3,
       losers: bottom3,

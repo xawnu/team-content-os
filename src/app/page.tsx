@@ -79,6 +79,12 @@ export default async function Home() {
               打开内容规划器
             </Link>
             <Link
+              href="/similar"
+              className="inline-flex rounded-full bg-indigo-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-600"
+            >
+              打开种子找同类
+            </Link>
+            <Link
               href="/tracker"
               className="inline-flex rounded-full bg-emerald-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-600"
             >
