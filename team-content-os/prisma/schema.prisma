@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProjectVisibility {
+  private
+  team
+}
+
+enum WorkflowStatus {
+  draft
+  review
+  approved
+  published
+}
+
+model Team {
+  id        String    @id @default(cuid())
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  users     User[]
+  projects  Project[]
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String
+  role      String    @default("creator")
+  teamId    String
+  team      Team      @relation(fields: [teamId], references: [id])
+  projects  Project[] @relation("ProjectOwner")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Project {
+  id           String            @id @default(cuid())
+  teamId       String
+  ownerId      String
+  name         String
+  niche        String
+  language     String
+  positioning  String
+  visibility   ProjectVisibility @default(private)
+  status       WorkflowStatus    @default(draft)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  team         Team              @relation(fields: [teamId], references: [id])
+  owner        User              @relation("ProjectOwner", fields: [ownerId], references: [id])
+  channels     CompetitorChannel[]
+  patterns     ContentPattern[]
+  episodes     EpisodePlan[]
+
+  @@index([teamId, ownerId])
+}
+
+model CompetitorChannel {
+  id              String            @id @default(cuid())
+  projectId       String
+  externalId      String?           @unique
+  handle          String?
+  name            String
+  description     String?
+  subscriberCount Int?
+  videoCount      Int?
+  lastSyncAt      DateTime?
+  status          WorkflowStatus    @default(draft)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  project         Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  videos          CompetitorVideo[]
+
+  @@index([projectId])
+}
+
+model CompetitorVideo {
+  id              String   @id @default(cuid())
+  channelId       String
+  externalId      String?  @unique
+  title           String
+  publishedAt     DateTime?
+  durationSec     Int?
+  views           Int?
+  likes           Int?
+  comments        Int?
+  descriptionText String?
+  transcriptText  String?
+  thumbnailUrl    String?
+  topicCluster    String?
+  hookType        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  channel         CompetitorChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId, publishedAt])
+}
+
+model ContentPattern {
+  id              String   @id @default(cuid())
+  projectId       String
+  patternType     String
+  templateText    String
+  applicableTopic String?
+  confidenceScore Float    @default(0)
+  examples        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, patternType])
+}
+
+model EpisodePlan {
+  id               String         @id @default(cuid())
+  projectId        String
+  plannedDate      DateTime?
+  topic            String
+  targetKeyword    String?
+  titleOptions     Json
+  thumbnailCopy    String?
+  scriptOutline    String?
+  shotList         String?
+  voiceoverOutline String?
+  assetsNeeded     String?
+  status           WorkflowStatus @default(draft)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  project          Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  metrics          EpisodeMetrics?
+
+  @@index([projectId, plannedDate])
+}
+
+model EpisodeMetrics {
+  id               String   @id @default(cuid())
+  episodeId        String   @unique
+  ctr              Float?
+  retention30s     Float?
+  avgWatchTimeSec  Int?
+  views7d          Int?
+  commentsSummary  String?
+  winOrFail        String?
+  optimizationNote String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  episode          EpisodePlan @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+}
