@@ -40,6 +40,16 @@ type SimilarRow = {
   matchedTerms: string[];
 };
 
+type RunRow = {
+  id: string;
+  query: string;
+  days: number;
+  fetchedVideos: number;
+  filteredVideos: number;
+  createdAt: string;
+  _count: { candidates: number };
+};
+
 function num(n: number) {
   return new Intl.NumberFormat("en-US").format(n);
 }
@@ -56,8 +66,21 @@ export default function DiscoverPage() {
   const [seedChannelId, setSeedChannelId] = useState("");
   const [similarItems, setSimilarItems] = useState<SimilarRow[]>([]);
   const [similarLoading, setSimilarLoading] = useState(false);
+  const [runs, setRuns] = useState<RunRow[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const top = useMemo(() => data?.channels?.[0], [data]);
+
+  async function loadHistory() {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch("/api/youtube/discover/history");
+      const json = await res.json();
+      if (res.ok && json?.ok) setRuns(json.runs ?? []);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
 
   useEffect(() => {
     async function loadNiches() {
@@ -69,6 +92,7 @@ export default function DiscoverPage() {
     }
 
     loadNiches();
+    loadHistory();
   }, []);
 
   useEffect(() => {
@@ -97,6 +121,7 @@ export default function DiscoverPage() {
       const json = (await res.json()) as DiscoverResponse;
       if (!res.ok || !json.ok) throw new Error(json.error || "请求失败");
       setData(json);
+      loadHistory();
     } catch (e) {
       setError(e instanceof Error ? e.message : "未知错误");
       setData(null);
@@ -238,6 +263,47 @@ export default function DiscoverPage() {
                 </tbody>
               </table>
             </div>
+          )}
+        </section>
+
+        <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-zinc-700">历史抓取记录</h2>
+            <button onClick={loadHistory} className="text-xs text-zinc-600 underline">
+              刷新
+            </button>
+          </div>
+          {historyLoading ? (
+            <p className="text-sm text-zinc-500">加载中...</p>
+          ) : runs.length ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-zinc-100 text-zinc-600">
+                  <tr>
+                    <th className="px-3 py-2 text-left">时间</th>
+                    <th className="px-3 py-2 text-left">关键词</th>
+                    <th className="px-3 py-2 text-right">窗口</th>
+                    <th className="px-3 py-2 text-right">候选频道</th>
+                    <th className="px-3 py-2 text-right">过滤视频</th>
+                    <th className="px-3 py-2 text-left">Run ID</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {runs.map((r) => (
+                    <tr key={r.id} className="border-t border-zinc-100">
+                      <td className="px-3 py-2">{new Date(r.createdAt).toLocaleString()}</td>
+                      <td className="px-3 py-2">{r.query}</td>
+                      <td className="px-3 py-2 text-right">{r.days}d</td>
+                      <td className="px-3 py-2 text-right">{r._count.candidates}</td>
+                      <td className="px-3 py-2 text-right">{r.filteredVideos}</td>
+                      <td className="px-3 py-2 text-xs text-zinc-500">{r.id}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-500">暂无历史记录，先运行一次分析。</p>
           )}
         </section>
 
