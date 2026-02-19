@@ -27,6 +27,8 @@ export default function PlannerPage() {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastPlan, setLastPlan] = useState<PlanResult | null>(null);
+  const [seedText, setSeedText] = useState("@homesteadrootss");
+  const [scene, setScene] = useState("yard");
 
   async function loadEpisodes() {
     const res = await fetch("/api/planner/episodes");
@@ -47,6 +49,34 @@ export default function PlannerPage() {
     setLoading(false);
   }
 
+  async function generateSeedPlan() {
+    setLoading(true);
+    const res = await fetch("/api/planner/seed-generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seedText, count: 10, scene, language: "zh", ai: true }),
+    });
+    const json = await res.json();
+    if (res.ok && json?.ok) {
+      setLastPlan({
+        mode: "seed-driven",
+        provider: "seed+ai",
+        briefs: (json.generated || []).slice(0, 3).map((g: { id: string; topic: string; titleOptions: string[] }) => ({
+          episodeId: g.id,
+          topic: g.topic,
+          titleOptions: g.titleOptions,
+          brief: {
+            hook: `Why ${g.topic} matters now`,
+            body: ["Step 1", "Step 2", "Step 3"],
+            cta: "Comment next topic",
+          },
+        })),
+      });
+    }
+    await loadEpisodes();
+    setLoading(false);
+  }
+
   useEffect(() => {
     loadEpisodes();
   }, []);
@@ -54,27 +84,57 @@ export default function PlannerPage() {
   return (
     <main className="min-h-screen bg-zinc-50 p-6 text-zinc-900 md:p-8">
       <div className="mx-auto max-w-6xl space-y-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Planner v1</h1>
-            <p className="text-sm text-zinc-600">自动生成周计划 + 查看内容执行清单</p>
+        <header className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Planner v2</h1>
+              <p className="text-sm text-zinc-600">按种子频道生成专属周计划 + 查看执行清单</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link href="/discover" className="rounded border border-zinc-300 px-3 py-1 text-sm">返回发现页</Link>
+              <button
+                onClick={() => generatePlan("v1")}
+                disabled={loading}
+                className="rounded border border-zinc-300 bg-white px-3 py-1 text-sm disabled:opacity-50"
+              >
+                {loading ? "生成中..." : "生成V1"}
+              </button>
+              <button
+                onClick={() => generatePlan("v2")}
+                disabled={loading}
+                className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
+              >
+                {loading ? "生成中..." : "生成V2"}
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/discover" className="rounded border border-zinc-300 px-3 py-1 text-sm">返回发现页</Link>
-            <button
-              onClick={() => generatePlan("v1")}
-              disabled={loading}
-              className="rounded border border-zinc-300 bg-white px-3 py-1 text-sm disabled:opacity-50"
-            >
-              {loading ? "生成中..." : "生成V1"}
-            </button>
-            <button
-              onClick={() => generatePlan("v2")}
-              disabled={loading}
-              className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
-            >
-              {loading ? "生成中..." : "生成V2(推荐)"}
-            </button>
+
+          <div className="grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 md:grid-cols-5">
+            <label className="space-y-1 md:col-span-3">
+              <span className="text-xs text-zinc-500">种子频道（支持 @handle/链接，多行或逗号分隔）</span>
+              <textarea
+                value={seedText}
+                onChange={(e) => setSeedText(e.target.value)}
+                className="min-h-20 w-full rounded border border-zinc-300 px-2 py-1 text-sm"
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs text-zinc-500">拍摄场景</span>
+              <input
+                value={scene}
+                onChange={(e) => setScene(e.target.value)}
+                className="w-full rounded border border-zinc-300 px-2 py-1 text-sm"
+              />
+            </label>
+            <div className="flex items-end">
+              <button
+                onClick={generateSeedPlan}
+                disabled={loading}
+                className="w-full rounded bg-blue-700 px-3 py-2 text-sm text-white disabled:opacity-50"
+              >
+                {loading ? "生成中..." : "按种子生成计划"}
+              </button>
+            </div>
           </div>
         </header>
 

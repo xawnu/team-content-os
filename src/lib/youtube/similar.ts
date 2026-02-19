@@ -73,7 +73,7 @@ async function ytFetch<T>(path: string, params: Record<string, string | number |
   return res.json() as Promise<T>;
 }
 
-async function resolveChannelId(input: string): Promise<string> {
+export async function resolveChannelId(input: string): Promise<string> {
   const raw = input.trim();
   if (!raw) throw new Error("channel input is required");
 
@@ -104,7 +104,7 @@ async function resolveChannelId(input: string): Promise<string> {
   return channelId;
 }
 
-async function getRecentTitles(channelId: string): Promise<string[]> {
+export async function getRecentTitles(channelId: string): Promise<string[]> {
   const search = await ytFetch<{ items: { id?: { videoId?: string } }[] }>("/search", {
     part: "id",
     channelId,
