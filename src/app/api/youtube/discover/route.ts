@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { discoverFastGrowingChannels } from "@/lib/youtube/discovery";
 import { prisma } from "@/lib/prisma";
+import { getNichePreset } from "@/lib/niche-config";
 
 export const runtime = "nodejs";
 
@@ -8,12 +9,17 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
-    const query = searchParams.get("q") || "homestead";
+    const niche = searchParams.get("niche");
+    const preset = await getNichePreset(niche);
+
+    const query = searchParams.get("q") || preset?.primaryQuery || "homestead";
     const regionCode = searchParams.get("region") || "US";
     const language = searchParams.get("lang") || "en";
-    const days = Number(searchParams.get("days") || 7);
-    const maxResults = Number(searchParams.get("maxResults") || 50);
-    const minDurationSec = Number(searchParams.get("minDurationSec") || 240);
+    const days = Number(searchParams.get("days") || preset?.windowDays || 7);
+    const maxResults = Number(searchParams.get("maxResults") || preset?.maxResults || 50);
+    const minDurationSec = Number(
+      searchParams.get("minDurationSec") || preset?.minDurationSec || 240,
+    );
 
     const persist = searchParams.get("persist") !== "0";
 
@@ -24,6 +30,7 @@ export async function GET(request: NextRequest) {
       days,
       maxResults,
       minDurationSec,
+      weights: preset?.weights,
     });
 
     let runId: string | null = null;
@@ -65,6 +72,7 @@ export async function GET(request: NextRequest) {
       days,
       maxResults,
       minDurationSec,
+      niche: preset?.slug ?? null,
       persist,
       runId,
       ...data,

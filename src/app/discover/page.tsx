@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type ChannelRow = {
   channelId: string;
@@ -24,6 +24,14 @@ type DiscoverResponse = {
   error?: string;
 };
 
+type NichePreset = {
+  slug: string;
+  name: string;
+  primaryQuery: string;
+  minDurationSec: number;
+  windowDays: number;
+};
+
 function num(n: number) {
   return new Intl.NumberFormat("en-US").format(n);
 }
@@ -35,8 +43,30 @@ export default function DiscoverPage() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<DiscoverResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [niches, setNiches] = useState<NichePreset[]>([]);
+  const [selectedNiche, setSelectedNiche] = useState("homestead");
 
   const top = useMemo(() => data?.channels?.[0], [data]);
+
+  useEffect(() => {
+    async function loadNiches() {
+      const res = await fetch("/api/niches");
+      const json = await res.json();
+      if (res.ok && json?.ok && Array.isArray(json.items)) {
+        setNiches(json.items);
+      }
+    }
+
+    loadNiches();
+  }, []);
+
+  useEffect(() => {
+    const niche = niches.find((n) => n.slug === selectedNiche);
+    if (!niche) return;
+    setQuery(niche.primaryQuery);
+    setDays(niche.windowDays);
+    setMinDurationSec(niche.minDurationSec);
+  }, [selectedNiche, niches]);
 
   async function run() {
     setLoading(true);
@@ -44,6 +74,7 @@ export default function DiscoverPage() {
     try {
       const params = new URLSearchParams({
         q: query,
+        niche: selectedNiche,
         days: String(days),
         minDurationSec: String(minDurationSec),
         maxResults: "50",
@@ -77,7 +108,22 @@ export default function DiscoverPage() {
         </header>
 
         <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-5">
+            <label className="space-y-1 text-sm">
+              <span className="text-zinc-600">赛道模板</span>
+              <select
+                value={selectedNiche}
+                onChange={(e) => setSelectedNiche(e.target.value)}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2"
+              >
+                {!niches.length && <option value="homestead">Homestead / Off-grid</option>}
+                {niches.map((n) => (
+                  <option key={n.slug} value={n.slug}>
+                    {n.name}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="space-y-1 text-sm">
               <span className="text-zinc-600">关键词</span>
               <input

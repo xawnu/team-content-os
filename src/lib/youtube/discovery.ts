@@ -35,6 +35,11 @@ export type DiscoverInput = {
   days?: number;
   maxResults?: number;
   minDurationSec?: number;
+  weights?: {
+    viewSum: number;
+    medianView: number;
+    upload: number;
+  };
 };
 
 export type ChannelScore = {
@@ -67,11 +72,16 @@ function median(values: number[]): number {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-function calcScore(viewsSum: number, viewsMedian: number, videoCount: number): number {
+function calcScore(
+  viewsSum: number,
+  viewsMedian: number,
+  videoCount: number,
+  weights: { viewSum: number; medianView: number; upload: number },
+): number {
   const score =
-    0.45 * Math.log(viewsSum + 1) +
-    0.3 * Math.log(viewsMedian + 1) +
-    0.25 * Math.min(videoCount, 7);
+    weights.viewSum * Math.log(viewsSum + 1) +
+    weights.medianView * Math.log(viewsMedian + 1) +
+    weights.upload * Math.min(videoCount, 7);
   return Number((score * 10).toFixed(2));
 }
 
@@ -107,6 +117,7 @@ export async function discoverFastGrowingChannels(input: DiscoverInput): Promise
   const publishedAfter = new Date(now - days * 24 * 60 * 60 * 1000).toISOString();
   const maxResults = Math.min(input.maxResults ?? 50, 50);
   const minDurationSec = input.minDurationSec ?? 240;
+  const weights = input.weights ?? { viewSum: 0.45, medianView: 0.3, upload: 0.25 };
 
   const searchRes = await ytFetch<{ items: SearchItem[] }>("/search", {
     part: "snippet",
@@ -169,7 +180,7 @@ export async function discoverFastGrowingChannels(input: DiscoverInput): Promise
       const viewsSum7d = row.views.reduce((a, b) => a + b, 0);
       const viewsMedian7d = median(row.views);
       const videoCount7d = row.count;
-      const score = calcScore(viewsSum7d, viewsMedian7d, videoCount7d);
+      const score = calcScore(viewsSum7d, viewsMedian7d, videoCount7d, weights);
 
       return {
         channelId,

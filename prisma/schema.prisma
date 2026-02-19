@@ -185,3 +185,23 @@ model DiscoverCandidate {
   @@index([runId])
   @@index([channelId])
 }
+
+model NicheConfig {
+  id               String   @id @default(cuid())
+  slug             String   @unique
+  name             String
+  primaryQuery     String
+  keywordSet       Json
+  minDurationSec   Int      @default(240)
+  windowDays       Int      @default(7)
+  maxResults       Int      @default(50)
+  viewSumWeight    Float    @default(0.45)
+  medianViewWeight Float    @default(0.30)
+  uploadWeight     Float    @default(0.25)
+  riskWords        Json
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([active])
+}

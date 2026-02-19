@@ -38,7 +38,7 @@ YOUTUBE_API_KEY=your_key
 本地测试：
 
 ```bash
-GET /api/youtube/discover?q=homestead&days=7&region=US&lang=en&maxResults=50&minDurationSec=240&persist=1
+GET /api/youtube/discover?q=homestead&niche=homestead&days=7&region=US&lang=en&maxResults=50&minDurationSec=240&persist=1
 ```
 
 说明：
@@ -46,6 +46,7 @@ GET /api/youtube/discover?q=homestead&days=7&region=US&lang=en&maxResults=50&min
 - 再用 `videos.list` 补充 `viewCount + duration`
 - 过滤短视频后按频道聚合，计算 GrowthScore
 - `persist=1` 时会写入 `DiscoverRun / DiscoverCandidate` 表，支持后续复盘追踪
+- 赛道模板接口：`GET /api/niches`
 
 ## 下一步建议
 
