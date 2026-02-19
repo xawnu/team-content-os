@@ -49,7 +49,7 @@ GET /api/youtube/discover?q=homestead&niche=homestead&days=7&region=US&lang=en&m
 - 赛道模板接口：`GET /api/niches`
 - 种子频道找同类：`GET /api/youtube/similar?seed=<UC...|@handle|url>`
 - 标题/关键词分析：`GET /api/youtube/analyze?runId=<discoverRunId可选>&ai=1`
-- 生成周计划：`POST /api/planner/generate`
+- 生成周计划：`POST /api/planner/generate`（支持 `mode=v1|v2`，v2可启用AI）
 - 查看/回填内容与指标：`GET/POST /api/planner/episodes`
 
 ## 下一步建议

@@ -17,9 +17,16 @@ type Episode = {
   } | null;
 };
 
+type PlanResult = {
+  mode?: string;
+  provider?: string;
+  briefs?: Array<{ episodeId: string; topic: string; titleOptions: string[]; brief: { hook: string; body: string[]; cta: string } }>;
+};
+
 export default function PlannerPage() {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lastPlan, setLastPlan] = useState<PlanResult | null>(null);
 
   async function loadEpisodes() {
     const res = await fetch("/api/planner/episodes");
@@ -27,13 +34,15 @@ export default function PlannerPage() {
     if (res.ok && json.ok) setEpisodes(json.episodes ?? []);
   }
 
-  async function generatePlan() {
+  async function generatePlan(mode: "v1" | "v2" = "v2") {
     setLoading(true);
-    await fetch("/api/planner/generate", {
+    const res = await fetch("/api/planner/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ count: 10, briefs: 3 }),
+      body: JSON.stringify({ mode, count: 10, briefs: 3, ai: true }),
     });
+    const json = await res.json();
+    if (res.ok && json?.ok) setLastPlan(json);
     await loadEpisodes();
     setLoading(false);
   }
@@ -53,14 +62,38 @@ export default function PlannerPage() {
           <div className="flex items-center gap-2">
             <Link href="/discover" className="rounded border border-zinc-300 px-3 py-1 text-sm">返回发现页</Link>
             <button
-              onClick={generatePlan}
+              onClick={() => generatePlan("v1")}
+              disabled={loading}
+              className="rounded border border-zinc-300 bg-white px-3 py-1 text-sm disabled:opacity-50"
+            >
+              {loading ? "生成中..." : "生成V1"}
+            </button>
+            <button
+              onClick={() => generatePlan("v2")}
               disabled={loading}
               className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
             >
-              {loading ? "生成中..." : "生成周计划(10条)"}
+              {loading ? "生成中..." : "生成V2(推荐)"}
             </button>
           </div>
         </header>
+
+        {lastPlan?.briefs?.length ? (
+          <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-sm font-semibold text-zinc-700">
+              最新自动Brief（{lastPlan.mode || "v?"}{lastPlan.provider ? ` / ${lastPlan.provider}` : ""}）
+            </h2>
+            <div className="grid gap-3 md:grid-cols-3">
+              {lastPlan.briefs.map((b) => (
+                <article key={b.episodeId} className="rounded-lg border border-zinc-200 p-3 text-sm">
+                  <p className="font-medium">{b.topic}</p>
+                  <p className="mt-1 text-xs text-zinc-600">Hook: {b.brief.hook}</p>
+                  <p className="mt-1 text-xs text-zinc-600">CTA: {b.brief.cta}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
