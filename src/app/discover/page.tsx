@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 type ChannelRow = {
   channelId: string;
   channelTitle: string;
+  channelUrl: string;
   videoCount7d: number;
   viewsSum7d: number;
   viewsMedian7d: number;
@@ -19,6 +20,7 @@ type DiscoverResponse = {
   channels: ChannelRow[];
   fetchedVideos: number;
   filteredVideos: number;
+  runId?: string | null;
   error?: string;
 };
 
@@ -47,6 +49,7 @@ export default function DiscoverPage() {
         maxResults: "50",
         region: "US",
         lang: "en",
+        persist: "1",
       });
       const res = await fetch(`/api/youtube/discover?${params.toString()}`);
       const json = (await res.json()) as DiscoverResponse;
@@ -117,7 +120,7 @@ export default function DiscoverPage() {
 
         {data && (
           <>
-            <section className="grid gap-4 md:grid-cols-4">
+            <section className="grid gap-4 md:grid-cols-5">
               <div className="rounded-xl bg-white p-4 shadow-sm">
                 <p className="text-xs text-zinc-500">候选频道</p>
                 <p className="mt-1 text-2xl font-semibold">{data.channels.length}</p>
@@ -133,6 +136,10 @@ export default function DiscoverPage() {
               <div className="rounded-xl bg-white p-4 shadow-sm">
                 <p className="text-xs text-zinc-500">Top1</p>
                 <p className="mt-1 text-sm font-semibold">{top?.channelTitle ?? "-"}</p>
+              </div>
+              <div className="rounded-xl bg-white p-4 shadow-sm">
+                <p className="text-xs text-zinc-500">入库批次</p>
+                <p className="mt-1 truncate text-sm font-semibold">{data.runId ?? "-"}</p>
               </div>
             </section>
 
@@ -152,7 +159,16 @@ export default function DiscoverPage() {
                   <tbody>
                     {data.channels.map((row) => (
                       <tr key={row.channelId} className="border-t border-zinc-100 align-top">
-                        <td className="px-3 py-2 font-medium">{row.channelTitle}</td>
+                        <td className="px-3 py-2 font-medium">
+                          <a
+                            href={row.channelUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-700 hover:underline"
+                          >
+                            {row.channelTitle}
+                          </a>
+                        </td>
                         <td className="px-3 py-2 text-right font-semibold">{row.score}</td>
                         <td className="px-3 py-2 text-right">{num(row.videoCount7d)}</td>
                         <td className="px-3 py-2 text-right">{num(row.viewsSum7d)}</td>

@@ -151,3 +151,37 @@ model EpisodeMetrics {
   updatedAt        DateTime @updatedAt
   episode          EpisodePlan @relation(fields: [episodeId], references: [id], onDelete: Cascade)
 }
+
+model DiscoverRun {
+  id             String   @id @default(cuid())
+  query          String
+  regionCode     String
+  language       String
+  days           Int
+  maxResults     Int
+  minDurationSec Int
+  fetchedVideos  Int
+  filteredVideos Int
+  createdAt      DateTime @default(now())
+  candidates     DiscoverCandidate[]
+
+  @@index([createdAt])
+}
+
+model DiscoverCandidate {
+  id            String   @id @default(cuid())
+  runId         String
+  channelId     String
+  channelTitle  String
+  channelUrl    String
+  videoCount7d  Int
+  viewsSum7d    Int
+  viewsMedian7d Int
+  score         Float
+  sampleTitles  Json
+  createdAt     DateTime @default(now())
+  run           DiscoverRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@index([channelId])
+}

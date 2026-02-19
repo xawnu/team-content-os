@@ -40,6 +40,7 @@ export type DiscoverInput = {
 export type ChannelScore = {
   channelId: string;
   channelTitle: string;
+  channelUrl: string;
   videoCount7d: number;
   viewsSum7d: number;
   viewsMedian7d: number;
@@ -173,6 +174,7 @@ export async function discoverFastGrowingChannels(input: DiscoverInput): Promise
       return {
         channelId,
         channelTitle: row.channelTitle,
+        channelUrl: `https://www.youtube.com/channel/${channelId}`,
         videoCount7d,
         viewsSum7d,
         viewsMedian7d,

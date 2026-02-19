@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { discoverFastGrowingChannels } from "@/lib/youtube/discovery";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,8 @@ export async function GET(request: NextRequest) {
     const maxResults = Number(searchParams.get("maxResults") || 50);
     const minDurationSec = Number(searchParams.get("minDurationSec") || 240);
 
+    const persist = searchParams.get("persist") !== "0";
+
     const data = await discoverFastGrowingChannels({
       query,
       regionCode,
@@ -23,6 +26,37 @@ export async function GET(request: NextRequest) {
       minDurationSec,
     });
 
+    let runId: string | null = null;
+
+    if (persist) {
+      const run = await prisma.discoverRun.create({
+        data: {
+          query,
+          regionCode,
+          language,
+          days,
+          maxResults,
+          minDurationSec,
+          fetchedVideos: data.fetchedVideos,
+          filteredVideos: data.filteredVideos,
+          candidates: {
+            create: data.channels.map((c) => ({
+              channelId: c.channelId,
+              channelTitle: c.channelTitle,
+              channelUrl: c.channelUrl,
+              videoCount7d: c.videoCount7d,
+              viewsSum7d: c.viewsSum7d,
+              viewsMedian7d: c.viewsMedian7d,
+              score: c.score,
+              sampleTitles: c.sampleTitles,
+            })),
+          },
+        },
+      });
+
+      runId = run.id;
+    }
+
     return NextResponse.json({
       ok: true,
       query,
@@ -31,6 +65,8 @@ export async function GET(request: NextRequest) {
       days,
       maxResults,
       minDurationSec,
+      persist,
+      runId,
       ...data,
     });
   } catch (error) {
