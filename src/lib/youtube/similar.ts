@@ -106,9 +106,11 @@ export async function findSimilarChannels(seedChannelId: string) {
     order: "relevance",
   });
 
-  const candidates = [...new Map((search.items ?? [])
-    .map((i) => [i.snippet?.channelId, i])
-    .filter(([id]) => Boolean(id))).values()];
+  const entries: Array<[string, SearchItem]> = (search.items ?? [])
+    .filter((i): i is SearchItem => Boolean(i?.snippet?.channelId))
+    .map((i) => [i.snippet!.channelId!, i]);
+
+  const candidates = [...new Map<string, SearchItem>(entries).values()];
 
   const rows = [] as {
     channelId: string;
