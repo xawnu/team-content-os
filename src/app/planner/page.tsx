@@ -58,6 +58,23 @@ export default function PlannerPage() {
     }
   }
 
+  async function deleteEpisode(episodeId: string) {
+    const ok = window.confirm("确认删除这条历史文案/选题吗？删除后不可恢复。");
+    if (!ok) return;
+
+    const res = await fetch("/api/planner/episodes", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ episodeId }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json?.ok) {
+      alert(json?.error || "删除失败");
+      return;
+    }
+    await loadEpisodes();
+  }
+
   useEffect(() => {
     loadEpisodes();
   }, []);
@@ -173,6 +190,7 @@ export default function PlannerPage() {
                   <th className="px-3 py-2 text-left">关键词</th>
                   <th className="px-3 py-2 text-left">计划日期</th>
                   <th className="px-3 py-2 text-left">标题候选</th>
+                  <th className="px-3 py-2 text-right">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,6 +200,14 @@ export default function PlannerPage() {
                     <td className="px-3 py-2">{e.targetKeyword || "-"}</td>
                     <td className="px-3 py-2">{e.plannedDate ? new Date(e.plannedDate).toLocaleDateString() : "-"}</td>
                     <td className="px-3 py-2 text-zinc-600">{(e.titleOptions || []).slice(0, 2).join(" / ")}</td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        onClick={() => deleteEpisode(e.id)}
+                        className="rounded border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
+                      >
+                        删除
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

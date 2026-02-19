@@ -56,3 +56,21 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const episodeId = String(body.episodeId || "").trim();
+    if (!episodeId) {
+      return NextResponse.json({ ok: false, error: "episodeId required" }, { status: 400 });
+    }
+
+    await prisma.episodePlan.delete({ where: { id: episodeId } });
+    return NextResponse.json({ ok: true, deletedId: episodeId });
+  } catch (error) {
+    return NextResponse.json(
+      { ok: false, error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 },
+    );
+  }
+}
