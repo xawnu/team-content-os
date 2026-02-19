@@ -16,7 +16,7 @@ export async function GET() {
       include: { metrics: true },
     });
 
-    const own = episodes.map((e) => ({
+    const own = episodes.map((e: (typeof episodes)[number]) => ({
       id: e.id,
       topic: e.topic,
       targetKeyword: e.targetKeyword,
