@@ -285,6 +285,9 @@ export default function DiscoverPage() {
             <Link href="/planner" className="rounded-md border border-zinc-300 px-3 py-1.5 text-zinc-700 hover:bg-zinc-100">
               规划器
             </Link>
+            <Link href="/tracker" className="rounded-md border border-zinc-300 px-3 py-1.5 text-zinc-700 hover:bg-zinc-100">
+              追踪器
+            </Link>
           </div>
         </header>
 

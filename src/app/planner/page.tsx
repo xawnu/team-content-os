@@ -96,6 +96,7 @@ export default function PlannerPage() {
             </div>
             <div className="flex items-center gap-2">
               <Link href="/discover" className="rounded border border-zinc-300 px-3 py-1 text-sm">返回发现页</Link>
+            <Link href="/tracker" className="rounded border border-zinc-300 px-3 py-1 text-sm">追踪页</Link>
               <button
                 onClick={() => generatePlan("v1")}
                 disabled={loading}

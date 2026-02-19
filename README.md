@@ -52,6 +52,7 @@ GET /api/youtube/discover?q=homestead&niche=homestead&days=7&region=US&lang=en&m
 - 生成周计划：`POST /api/planner/generate`（支持 `mode=v1|v2`，v2可启用AI）
 - 查看/回填内容与指标：`GET/POST /api/planner/episodes`
 - 按种子频道生成计划：`POST /api/planner/seed-generate`
+- 追踪汇总看板数据：`GET /api/tracker/summary`
 
 ## 下一步建议
 

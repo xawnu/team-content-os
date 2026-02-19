@@ -78,6 +78,12 @@ export default async function Home() {
             >
               打开内容规划器
             </Link>
+            <Link
+              href="/tracker"
+              className="inline-flex rounded-full bg-emerald-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-600"
+            >
+              打开数据追踪
+            </Link>
           </div>
         </header>
 
