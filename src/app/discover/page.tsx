@@ -111,6 +111,8 @@ export default function DiscoverPage() {
   const [selectedRun, setSelectedRun] = useState<RunDetail | null>(null);
   const [analysis, setAnalysis] = useState<AnalyzeResult | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisProvider, setAnalysisProvider] = useState<string>("rules");
+  const [useAiAnalysis, setUseAiAnalysis] = useState(true);
 
   const top = useMemo(() => data?.channels?.[0], [data]);
 
@@ -177,10 +179,12 @@ export default function DiscoverPage() {
   async function loadAnalysis(runId?: string) {
     setAnalysisLoading(true);
     try {
-      const url = runId ? `/api/youtube/analyze?runId=${encodeURIComponent(runId)}` : "/api/youtube/analyze";
+      const base = runId ? `/api/youtube/analyze?runId=${encodeURIComponent(runId)}` : "/api/youtube/analyze";
+      const url = `${base}${base.includes("?") ? "&" : "?"}ai=${useAiAnalysis ? "1" : "0"}`;
       const res = await fetch(url);
       const json = await res.json();
       if (res.ok && json?.ok) {
+        setAnalysisProvider(json.provider ?? "rules");
         setAnalysis({
           runId: json.runId,
           query: json.query,
@@ -557,39 +561,54 @@ export default function DiscoverPage() {
         <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-zinc-700">Analyzer v1（标题模式/关键词/风险词）</h2>
-            <button onClick={() => loadAnalysis(selectedRunId ?? undefined)} className="text-xs text-zinc-600 underline">
-              重新分析
-            </button>
+            <div className="flex items-center gap-3 text-xs">
+              <label className="flex items-center gap-1 text-zinc-600">
+                <input
+                  type="checkbox"
+                  checked={useAiAnalysis}
+                  onChange={(e) => setUseAiAnalysis(e.target.checked)}
+                />
+                AI增强
+              </label>
+              <button onClick={() => loadAnalysis(selectedRunId ?? undefined)} className="text-zinc-600 underline">
+                重新分析
+              </button>
+            </div>
           </div>
           {analysisLoading ? (
             <p className="text-sm text-zinc-500">分析中...</p>
           ) : analysis ? (
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <p className="mb-2 text-xs text-zinc-500">Top 标题模式</p>
-                <ul className="space-y-1 text-sm text-zinc-700">
-                  {analysis.topPatterns.slice(0, 6).map((p, i) => (
-                    <li key={`${p.pattern}-${i}`}>• {p.pattern} ({p.count})</li>
-                  ))}
-                </ul>
+            <>
+              <p className="mb-2 text-xs text-zinc-500">分析来源：{analysisProvider}</p>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div>
+                  <p className="mb-2 text-xs text-zinc-500">Top 标题模式</p>
+                  <ul className="space-y-1 text-sm text-zinc-700">
+                    {analysis.topPatterns.slice(0, 6).map((p, i) => (
+                      <li key={`${p.pattern}-${i}`}>• {p.pattern} ({p.count})</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="mb-2 text-xs text-zinc-500">Top 关键词</p>
+                  <ul className="space-y-1 text-sm text-zinc-700">
+                    {analysis.topKeywords.slice(0, 10).map((k) => (
+                      <li key={k.keyword}>• {k.keyword} ({k.count})</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="mb-2 text-xs text-zinc-500">风险词命中</p>
+                  <ul className="space-y-1 text-sm text-zinc-700">
+                    {analysis.riskHits.length ? (
+                      analysis.riskHits.map((r) => <li key={r.word}>• {r.word} ({r.count})</li>)
+                    ) : (
+                      <li>• 暂无明显风险词</li>
+                    )}
+                  </ul>
+                </div>
               </div>
-              <div>
-                <p className="mb-2 text-xs text-zinc-500">Top 关键词</p>
-                <ul className="space-y-1 text-sm text-zinc-700">
-                  {analysis.topKeywords.slice(0, 10).map((k) => (
-                    <li key={k.keyword}>• {k.keyword} ({k.count})</li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <p className="mb-2 text-xs text-zinc-500">风险词命中</p>
-                <ul className="space-y-1 text-sm text-zinc-700">
-                  {analysis.riskHits.length ? analysis.riskHits.map((r) => (
-                    <li key={r.word}>• {r.word} ({r.count})</li>
-                  )) : <li>• 暂无明显风险词</li>}
-                </ul>
-              </div>
-            </div>
+            </>
           ) : (
             <p className="text-sm text-zinc-500">暂无可分析数据，请先运行一次增长发现。</p>
           )}
