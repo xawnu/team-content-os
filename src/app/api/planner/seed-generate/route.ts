@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
       count: Number(body.count || 10),
       language: String(body.language || "zh"),
       scene: String(body.scene || "general"),
+      autoScene: body.autoScene !== false,
       ai: body.ai !== false,
     });
 

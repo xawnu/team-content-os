@@ -29,6 +29,8 @@ export default function PlannerPage() {
   const [lastPlan, setLastPlan] = useState<PlanResult | null>(null);
   const [seedText, setSeedText] = useState("@homesteadrootss");
   const [scene, setScene] = useState("yard");
+  const [autoScene, setAutoScene] = useState(true);
+  const [sceneHint, setSceneHint] = useState<string>("");
 
   async function loadEpisodes() {
     const res = await fetch("/api/planner/episodes");
@@ -54,10 +56,12 @@ export default function PlannerPage() {
     const res = await fetch("/api/planner/seed-generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ seedText, count: 10, scene, language: "zh", ai: true }),
+      body: JSON.stringify({ seedText, count: 10, scene, autoScene, language: "zh", ai: true }),
     });
     const json = await res.json();
     if (res.ok && json?.ok) {
+      setSceneHint(`推断场景: ${json.inferredScene} · 使用场景: ${json.finalScene}`);
+      if (autoScene && json.finalScene) setScene(String(json.finalScene));
       setLastPlan({
         mode: "seed-driven",
         provider: "seed+ai",
@@ -125,6 +129,10 @@ export default function PlannerPage() {
                 onChange={(e) => setScene(e.target.value)}
                 className="w-full rounded border border-zinc-300 px-2 py-1 text-sm"
               />
+              <label className="mt-1 flex items-center gap-1 text-xs text-zinc-600">
+                <input type="checkbox" checked={autoScene} onChange={(e) => setAutoScene(e.target.checked)} />
+                自动根据频道推断场景
+              </label>
             </label>
             <div className="flex items-end">
               <button
@@ -136,6 +144,7 @@ export default function PlannerPage() {
               </button>
             </div>
           </div>
+          {sceneHint ? <p className="text-xs text-zinc-500">{sceneHint}</p> : null}
         </header>
 
         {lastPlan?.briefs?.length ? (

@@ -7,7 +7,29 @@ function tokenize(text: string): string[] {
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)
-    .filter((w) => w.length >= 4);
+    .filter((w) => w.length >= 3);
+}
+
+function inferScene(titles: string[]): { scene: string; alternatives: string[] } {
+  const joined = titles.join(" ").toLowerCase();
+  const rules: Array<{ scene: string; keys: string[] }> = [
+    { scene: "balcony", keys: ["balcony", "apartment", "small space", "pots", "container"] },
+    { scene: "backyard", keys: ["backyard", "yard", "garden bed", "raised bed"] },
+    { scene: "indoor", keys: ["indoor", "houseplant", "inside", "kitchen"] },
+    { scene: "off-grid", keys: ["off grid", "cabin", "homestead", "wilderness"] },
+    { scene: "farm", keys: ["farm", "livestock", "barn", "acre", "pasture"] },
+  ];
+
+  const scores = rules.map((r) => ({
+    scene: r.scene,
+    score: r.keys.reduce((acc, k) => acc + (joined.includes(k) ? 1 : 0), 0),
+  }));
+
+  scores.sort((a, b) => b.score - a.score);
+  const top = scores[0]?.score ? scores[0].scene : "general";
+  const alternatives = scores.filter((s) => s.score > 0 && s.scene !== top).map((s) => s.scene).slice(0, 2);
+
+  return { scene: top, alternatives };
 }
 
 function topKeywords(titles: string[], limit = 20): string[] {
@@ -37,6 +59,7 @@ export async function generateSeedDrivenPlan(input: {
   count?: number;
   language?: string;
   scene?: string;
+  autoScene?: boolean;
   ai?: boolean;
 }) {
   const seeds = input.seeds.filter(Boolean);
@@ -48,6 +71,9 @@ export async function generateSeedDrivenPlan(input: {
   const titleGroups = await Promise.all(uniqueChannels.map((id) => getRecentTitles(id)));
   const titles = titleGroups.flat();
   let keywords = topKeywords(titles, 18);
+
+  const sceneGuess = inferScene(titles);
+  const finalScene = input.autoScene !== false ? sceneGuess.scene : input.scene || sceneGuess.scene;
 
   if (input.ai) {
     try {
@@ -91,7 +117,7 @@ export async function generateSeedDrivenPlan(input: {
         plannedDate: new Date(Date.now() + i * 86400000),
         titleOptions,
         thumbnailCopy: `${n} ${k} tips`,
-        scriptOutline: `Scene=${input.scene || "general"}; Language=${input.language || "zh"}; Hook->3 points->CTA`,
+        scriptOutline: `Scene=${finalScene}; Language=${input.language || "zh"}; Hook->3 points->CTA`,
         shotList: "A-roll intro / process b-roll / before-after / close",
         voiceoverOutline: "clear, practical, no hype",
         assetsNeeded: "thumbnail, subtitles, b-roll",
@@ -105,6 +131,9 @@ export async function generateSeedDrivenPlan(input: {
     seeds,
     channelIds: uniqueChannels,
     keywordPool: keywords,
+    inferredScene: sceneGuess.scene,
+    sceneAlternatives: sceneGuess.alternatives,
+    finalScene,
     generated,
   };
 }
