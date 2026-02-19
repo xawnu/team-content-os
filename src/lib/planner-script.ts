@@ -7,6 +7,7 @@ export type DetailedScriptResult = {
   thumbnailCopy: string;
   opening15s: string[];
   timeline: Array<{ time: string; segment: string; voiceover: string; visuals: string }>;
+  contentItems: string[];
   cta: string;
   publishCopy: string;
   tags: string[];
@@ -14,6 +15,14 @@ export type DetailedScriptResult = {
   references: { seeds: string[]; sampledTitles: string[] };
   provider: "ai" | "template";
 };
+
+function parseRequiredCount(text: string): number | null {
+  const m = text.match(/(\d{1,3})\s*(种|个|条|items?)/i);
+  if (!m) return null;
+  const n = Number(m[1]);
+  if (!Number.isFinite(n) || n <= 0 || n > 50) return null;
+  return n;
+}
 
 export async function generateDetailedScriptFromSeeds(input: {
   seedText: string;
@@ -32,18 +41,21 @@ export async function generateDetailedScriptFromSeeds(input: {
   const titleGroups = await Promise.all(channelIds.map((id) => getRecentTitles(id)));
   const sampledTitles = titleGroups.flat().slice(0, 24);
 
+  const requiredCount = parseRequiredCount(input.direction || "");
+
   try {
     const ai = await openRouterJson<Omit<DetailedScriptResult, "provider">>([
       {
         role: "system",
         content:
-          "你是YouTube内容策划。请基于参考频道风格，产出1篇可直接拍摄的详细文案。仅学习结构和节奏，禁止复用原句。必须输出JSON。",
+          "你是YouTube内容策划。请基于参考频道风格，产出1篇可直接拍摄的详细文案。仅学习结构和节奏，禁止复用原句。禁止编造数字承诺；如果提到N种/个/条，contentItems必须严格给出N条。必须输出JSON。",
       },
       {
         role: "user",
         content: JSON.stringify({
           language: input.language || "zh",
           direction: input.direction || "同类型视频",
+          requiredCount,
           requirement: {
             count: 1,
             outputFields: [
@@ -52,6 +64,7 @@ export async function generateDetailedScriptFromSeeds(input: {
               "thumbnailCopy",
               "opening15s",
               "timeline",
+              "contentItems",
               "cta",
               "publishCopy",
               "tags",
@@ -62,6 +75,7 @@ export async function generateDetailedScriptFromSeeds(input: {
               "不要照抄参考标题和原句",
               "至少给出3条差异化点",
               "风格贴近参考频道但更适合实操拍摄",
+              "如果requiredCount存在，contentItems长度必须===requiredCount",
             ],
           },
           references: { seeds, sampledTitles },
@@ -69,8 +83,14 @@ export async function generateDetailedScriptFromSeeds(input: {
       },
     ]);
 
+    const contentItems = Array.isArray(ai.contentItems) ? ai.contentItems.map(String) : [];
+    if (requiredCount && contentItems.length !== requiredCount) {
+      throw new Error(`数字承诺不一致: 要求${requiredCount}，返回${contentItems.length}`);
+    }
+
     return {
       ...ai,
+      contentItems,
       references: { seeds, sampledTitles },
       provider: "ai" as const,
     };
@@ -87,6 +107,9 @@ export async function generateDetailedScriptFromSeeds(input: {
         { time: "01:20", segment: "执行过程", voiceover: "展示关键动作和踩坑。", visuals: "前后对比+B-roll" },
         { time: "02:40", segment: "结果与复盘", voiceover: "给出可量化结果和失败点。", visuals: "数据卡+对比图" },
       ],
+      contentItems: requiredCount
+        ? Array.from({ length: requiredCount }, (_, i) => `要点${i + 1}`)
+        : ["核心要点1", "核心要点2", "核心要点3"],
       cta: "如果你要我继续做第2期，评论区打‘继续’。",
       publishCopy: "这期按参考频道常见打法做了完整实测，但我们做了3处关键改造，结果比预期更稳。",
       tags: ["实测", "教程", "复盘", "同类型选题"],

@@ -17,6 +17,7 @@ type DetailedScript = {
   thumbnailCopy: string;
   opening15s: string[];
   timeline: Array<{ time: string; segment: string; voiceover: string; visuals: string }>;
+  contentItems: string[];
   cta: string;
   publishCopy: string;
   tags: string[];
@@ -127,6 +128,15 @@ export default function PlannerPage() {
               <p className="mb-2 text-xs text-zinc-500">开场前15秒逐句口播</p>
               <ul className="space-y-1 text-sm">{script.opening15s.map((line, i) => <li key={i}>• {line}</li>)}</ul>
             </div>
+
+            {script.contentItems?.length ? (
+              <div className="rounded border border-zinc-200 p-3">
+                <p className="mb-2 text-xs text-zinc-500">正文要点清单（数字承诺对齐）</p>
+                <ul className="grid gap-1 text-sm md:grid-cols-2">
+                  {script.contentItems.map((item, i) => <li key={i}>• {i + 1}. {item}</li>)}
+                </ul>
+              </div>
+            ) : null}
 
             <div className="rounded border border-zinc-200 p-3">
               <p className="mb-2 text-xs text-zinc-500">时间轴分镜脚本</p>

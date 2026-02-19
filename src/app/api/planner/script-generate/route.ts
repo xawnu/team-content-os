@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
       thumbnailCopy: String(normalized.thumbnailCopy ?? ""),
       opening15s: Array.isArray(normalized.opening15s) ? normalized.opening15s.map(String) : [],
       timeline: Array.isArray(normalized.timeline) ? normalized.timeline : [],
+      contentItems: Array.isArray(normalized.contentItems) ? normalized.contentItems.map(String) : [],
       cta: String(normalized.cta ?? ""),
       publishCopy: String(normalized.publishCopy ?? ""),
       tags: Array.isArray(normalized.tags) ? normalized.tags.map(String) : [],
