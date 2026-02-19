@@ -84,6 +84,8 @@ export async function generateDetailedScriptFromSeeds(input: {
               "如果requiredCount存在，contentItems长度必须===requiredCount",
               "如果topicLock存在，topic/title/contentItems必须明显围绕topicLock",
               "如果bannedWords存在，输出中不能出现这些词",
+              "timeline每段segment必须标注覆盖的要点编号，如[要点1]、[要点2-4]",
+              "若requiredCount=20，timeline必须覆盖要点1到要点20，不能遗漏",
             ],
           },
           references: { seeds, sampledTitles },
@@ -92,8 +94,30 @@ export async function generateDetailedScriptFromSeeds(input: {
     ]);
 
     const contentItems = Array.isArray(ai.contentItems) ? ai.contentItems.map(String) : [];
+    const timeline = Array.isArray(ai.timeline) ? ai.timeline : [];
+
     if (requiredCount && contentItems.length !== requiredCount) {
       throw new Error(`数字承诺不一致: 要求${requiredCount}，返回${contentItems.length}`);
+    }
+    if (contentItems.some((x) => String(x).trim().length < 4)) {
+      throw new Error("正文要点过于空泛");
+    }
+
+    if (requiredCount) {
+      const covered = new Set<number>();
+      for (const seg of timeline) {
+        const text = String((seg as { segment?: string }).segment || "");
+        const re = /要点\s*(\d+)(?:\s*[-~到]\s*(\d+))?/g;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(text))) {
+          const start = Number(m[1]);
+          const end = Number(m[2] || m[1]);
+          for (let i = start; i <= end; i++) covered.add(i);
+        }
+      }
+      for (let i = 1; i <= requiredCount; i++) {
+        if (!covered.has(i)) throw new Error(`分镜脚本未覆盖要点${i}`);
+      }
     }
 
     const textBlob = [ai.topic, ai.title, ...contentItems].join(" ").toLowerCase();
@@ -111,28 +135,7 @@ export async function generateDetailedScriptFromSeeds(input: {
       references: { seeds, sampledTitles },
       provider: "ai" as const,
     };
-  } catch {
-    const first = sampledTitles[0] || "参考频道同类主题";
-    return {
-      topic: "参考频道同类型实操视频",
-      title: `我按${first.slice(0, 24)}的方法实测7天，结果如何？`,
-      thumbnailCopy: "实测7天 结果公开",
-      opening15s: ["我选了参考频道常见的一种做法。", "这次我不抄答案，直接实测7天。", "今天给你看真实过程和结果。"],
-      timeline: [
-        { time: "00:00", segment: "开场钩子", voiceover: "先说目标和结果预期。", visuals: "结果先行画面+字幕" },
-        { time: "00:20", segment: "方法拆解", voiceover: "拆成3步并解释为什么这么做。", visuals: "手绘流程/实操镜头" },
-        { time: "01:20", segment: "执行过程", voiceover: "展示关键动作和踩坑。", visuals: "前后对比+B-roll" },
-        { time: "02:40", segment: "结果与复盘", voiceover: "给出可量化结果和失败点。", visuals: "数据卡+对比图" },
-      ],
-      contentItems: requiredCount
-        ? Array.from({ length: requiredCount }, (_, i) => `要点${i + 1}`)
-        : ["核心要点1", "核心要点2", "核心要点3"],
-      cta: "如果你要我继续做第2期，评论区打‘继续’。",
-      publishCopy: "这期按参考频道常见打法做了完整实测，但我们做了3处关键改造，结果比预期更稳。",
-      tags: ["实测", "教程", "复盘", "同类型选题"],
-      differentiation: ["把泛化建议改成可执行步骤", "增加失败样本和纠错过程", "加入量化对比结果"],
-      references: { seeds, sampledTitles },
-      provider: "template" as const,
-    };
+  } catch (error) {
+    throw new Error(error instanceof Error ? `文案质量校验未通过：${error.message}` : "文案质量校验未通过，请重试");
   }
 }

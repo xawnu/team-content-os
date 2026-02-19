@@ -27,9 +27,9 @@ export async function GET() {
       winOrFail: e.metrics?.winOrFail ?? null,
     }));
 
-    const ctrs = own.map((e) => e.ctr).filter((v): v is number => typeof v === "number");
-    const retention = own.map((e) => e.retention30s).filter((v): v is number => typeof v === "number");
-    const views = own.map((e) => e.views7d).filter((v): v is number => typeof v === "number");
+    const ctrs = own.map((e: (typeof own)[number]) => e.ctr).filter((v: unknown): v is number => typeof v === "number");
+    const retention = own.map((e: (typeof own)[number]) => e.retention30s).filter((v: unknown): v is number => typeof v === "number");
+    const views = own.map((e: (typeof own)[number]) => e.views7d).filter((v: unknown): v is number => typeof v === "number");
 
     const recentCandidates = await prisma.discoverCandidate.findMany({
       where: {
