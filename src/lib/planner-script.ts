@@ -28,6 +28,8 @@ export async function generateDetailedScriptFromSeeds(input: {
   seedText: string;
   language?: "zh" | "en";
   direction?: string;
+  topicLock?: string;
+  bannedWords?: string[];
 }) {
   const seeds = input.seedText
     .split(/\n|,/) 
@@ -42,6 +44,8 @@ export async function generateDetailedScriptFromSeeds(input: {
   const sampledTitles = titleGroups.flat().slice(0, 24);
 
   const requiredCount = parseRequiredCount(input.direction || "");
+  const topicLock = (input.topicLock || "").trim();
+  const bannedWords = (input.bannedWords || []).map((w) => w.trim()).filter(Boolean);
 
   try {
     const ai = await openRouterJson<Omit<DetailedScriptResult, "provider">>([
@@ -55,6 +59,8 @@ export async function generateDetailedScriptFromSeeds(input: {
         content: JSON.stringify({
           language: input.language || "zh",
           direction: input.direction || "同类型视频",
+          topicLock,
+          bannedWords,
           requiredCount,
           requirement: {
             count: 1,
@@ -76,6 +82,8 @@ export async function generateDetailedScriptFromSeeds(input: {
               "至少给出3条差异化点",
               "风格贴近参考频道但更适合实操拍摄",
               "如果requiredCount存在，contentItems长度必须===requiredCount",
+              "如果topicLock存在，topic/title/contentItems必须明显围绕topicLock",
+              "如果bannedWords存在，输出中不能出现这些词",
             ],
           },
           references: { seeds, sampledTitles },
@@ -86,6 +94,15 @@ export async function generateDetailedScriptFromSeeds(input: {
     const contentItems = Array.isArray(ai.contentItems) ? ai.contentItems.map(String) : [];
     if (requiredCount && contentItems.length !== requiredCount) {
       throw new Error(`数字承诺不一致: 要求${requiredCount}，返回${contentItems.length}`);
+    }
+
+    const textBlob = [ai.topic, ai.title, ...contentItems].join(" ").toLowerCase();
+    if (topicLock && !textBlob.includes(topicLock.toLowerCase())) {
+      throw new Error(`生成偏题：未围绕「${topicLock}」`);
+    }
+    if (bannedWords.length) {
+      const hit = bannedWords.find((w) => textBlob.includes(w.toLowerCase()));
+      if (hit) throw new Error(`命中禁用词：${hit}`);
     }
 
     return {

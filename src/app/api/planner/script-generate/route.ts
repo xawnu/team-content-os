@@ -33,8 +33,13 @@ export async function POST(request: NextRequest) {
     const seedText = String(body.seedText || "");
     const language = body.language === "en" ? "en" : "zh";
     const direction = String(body.direction || "同类型视频详细文案");
+    const topicLock = String(body.topicLock || "").trim();
+    const bannedWords = String(body.bannedWords || "")
+      .split(/,|\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
 
-    const raw = await generateDetailedScriptFromSeeds({ seedText, language, direction });
+    const raw = await generateDetailedScriptFromSeeds({ seedText, language, direction, topicLock, bannedWords });
     const normalized = (raw as Record<string, unknown>)?.["0"] && typeof (raw as Record<string, unknown>)["0"] === "object"
       ? { ...(raw as Record<string, unknown>)["0"] as Record<string, unknown>, references: (raw as Record<string, unknown>).references, provider: (raw as Record<string, unknown>).provider }
       : (raw as Record<string, unknown>);

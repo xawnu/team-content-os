@@ -30,6 +30,8 @@ export default function PlannerPage() {
   const [loading, setLoading] = useState(false);
   const [seedText, setSeedText] = useState("@homesteadrootss");
   const [direction, setDirection] = useState("同类型视频详细文案");
+  const [topicLock, setTopicLock] = useState("rain sounds");
+  const [bannedWords, setBannedWords] = useState("植物,甲醛,净化空气");
   const [script, setScript] = useState<DetailedScript | null>(null);
   const [error, setError] = useState<string>("");
 
@@ -46,7 +48,7 @@ export default function PlannerPage() {
       const res = await fetch("/api/planner/script-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seedText, direction, language: "zh" }),
+        body: JSON.stringify({ seedText, direction, topicLock, bannedWords, language: "zh" }),
       });
       const json = await res.json();
       if (!res.ok || !json?.ok) throw new Error(json?.error || "生成失败");
@@ -94,7 +96,7 @@ export default function PlannerPage() {
             </div>
           </div>
 
-          <div className="grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 md:grid-cols-5">
+          <div className="grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 md:grid-cols-6">
             <label className="space-y-1 md:col-span-3">
               <span className="text-xs text-zinc-500">参考频道（支持 @handle/链接，多行或逗号分隔）</span>
               <textarea
@@ -111,7 +113,25 @@ export default function PlannerPage() {
                 className="w-full rounded border border-zinc-300 px-2 py-1 text-sm"
               />
             </label>
-            <div className="flex items-end">
+            <label className="space-y-1 md:col-span-1">
+              <span className="text-xs text-zinc-500">主题锁定（防跑偏）</span>
+              <input
+                value={topicLock}
+                onChange={(e) => setTopicLock(e.target.value)}
+                className="w-full rounded border border-zinc-300 px-2 py-1 text-sm"
+                placeholder="例如：rain sounds"
+              />
+            </label>
+            <label className="space-y-1 md:col-span-1">
+              <span className="text-xs text-zinc-500">禁用词（逗号分隔）</span>
+              <input
+                value={bannedWords}
+                onChange={(e) => setBannedWords(e.target.value)}
+                className="w-full rounded border border-zinc-300 px-2 py-1 text-sm"
+                placeholder="例如：植物,甲醛"
+              />
+            </label>
+            <div className="flex items-end md:col-span-6">
               <button
                 onClick={generateOneScript}
                 disabled={loading}
