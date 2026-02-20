@@ -89,6 +89,8 @@ export async function generateDetailedScriptFromSeeds(input: {
               "如果bannedWords存在，输出中不能出现这些词",
               "timeline每段segment必须标注覆盖的要点编号，如[要点1]、[要点2-4]",
               "若requiredCount=20，timeline必须覆盖要点1到要点20，不能遗漏",
+              "timeline至少8段；每段voiceover>=60字，visuals>=40字，禁止泛化描述",
+              "每段必须给出具体镜头动作（机位/景别/转场之一）",
             ],
           },
           references: { seeds, sampledTitles, referenceVideos },
@@ -104,6 +106,22 @@ export async function generateDetailedScriptFromSeeds(input: {
     }
     if (contentItems.some((x) => String(x).trim().length < 4)) {
       throw new Error("正文要点过于空泛");
+    }
+
+    if (timeline.length < 8) {
+      throw new Error(`分镜段数不足：当前${timeline.length}段，至少需要8段`);
+    }
+
+    const shotKeywords = ["近景", "远景", "中景", "特写", "俯拍", "跟拍", "推镜", "拉镜", "转场", "机位", "镜头"];
+    for (let i = 0; i < timeline.length; i++) {
+      const seg = timeline[i] as { voiceover?: string; visuals?: string; segment?: string };
+      const voiceover = String(seg.voiceover || "").trim();
+      const visuals = String(seg.visuals || "").trim();
+      if (voiceover.length < 60) throw new Error(`第${i + 1}段口播过短，需至少60字`);
+      if (visuals.length < 40) throw new Error(`第${i + 1}段画面描述过短，需至少40字`);
+      if (!shotKeywords.some((k) => visuals.includes(k))) {
+        throw new Error(`第${i + 1}段缺少具体镜头动作（机位/景别/转场）`);
+      }
     }
 
     if (requiredCount) {
