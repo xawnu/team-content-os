@@ -162,8 +162,9 @@ export async function generateWeeklyPlanV2(input: GeneratePlanInput & { ai?: boo
     Array.isArray(c.sampleTitles) ? (c.sampleTitles as string[]) : [],
   );
   const similar = await prisma.similarRun.findFirst({ orderBy: { createdAt: "desc" }, include: { items: true } });
-  const similarWords = (similar?.items ?? [])
-    .flatMap((i: (typeof similar.items)[number]) => (Array.isArray(i.matchedTerms) ? (i.matchedTerms as string[]) : []))
+  const similarItems = similar?.items ?? [];
+  const similarWords = similarItems
+    .flatMap((i: (typeof similarItems)[number]) => (Array.isArray(i.matchedTerms) ? (i.matchedTerms as string[]) : []))
     .slice(0, 12);
 
   let pivot = Array.from(new Set([...topKeywords(titles, 20), ...similarWords])).slice(0, 15);
