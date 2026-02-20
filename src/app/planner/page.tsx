@@ -9,6 +9,8 @@ type Episode = {
   targetKeyword?: string | null;
   plannedDate?: string | null;
   titleOptions: string[];
+  scriptOutline?: string | null;
+  createdAt?: string;
 };
 
 type DetailedScript = {
@@ -32,8 +34,11 @@ export default function PlannerPage() {
   const [direction, setDirection] = useState("同类型视频详细文案");
   const [topicLock, setTopicLock] = useState("rain sounds");
   const [bannedWords, setBannedWords] = useState("植物,甲醛,净化空气");
+  const [sceneMode, setSceneMode] = useState("室内夜晚");
+  const [contentMode, setContentMode] = useState("实操教程");
   const [referenceVideosText, setReferenceVideosText] = useState("");
   const [script, setScript] = useState<DetailedScript | null>(null);
+  const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
   const [error, setError] = useState<string>("");
 
   async function loadEpisodes() {
@@ -60,7 +65,17 @@ export default function PlannerPage() {
       const res = await fetch("/api/planner/script-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seedText, direction, topicLock, bannedWords, referenceVideos, language: "zh" }),
+        body: JSON.stringify({
+          seedText,
+          direction,
+          topicLock,
+          bannedWords,
+          sceneMode,
+          contentMode,
+          referenceVideos,
+          variationNonce: Date.now(),
+          language: "zh",
+        }),
       });
       const json = await res.json();
       if (!res.ok || !json?.ok) throw new Error(json?.error || "生成失败");
@@ -86,7 +101,14 @@ export default function PlannerPage() {
       alert(json?.error || "删除失败");
       return;
     }
+    if (selectedEpisode?.id === episodeId) setSelectedEpisode(null);
     await loadEpisodes();
+  }
+
+  async function openEpisodeDetail(episodeId: string) {
+    const res = await fetch(`/api/planner/episodes?episodeId=${encodeURIComponent(episodeId)}`);
+    const json = await res.json();
+    if (res.ok && json?.ok && json?.episode) setSelectedEpisode(json.episode as Episode);
   }
 
   useEffect(() => {
@@ -151,6 +173,24 @@ export default function PlannerPage() {
                 className="w-full rounded border border-zinc-300 px-2 py-1 text-sm"
                 placeholder="例如：植物,甲醛"
               />
+            </label>
+            <label className="space-y-1 md:col-span-1">
+              <span className="text-xs text-zinc-500">场景模式</span>
+              <select value={sceneMode} onChange={(e) => setSceneMode(e.target.value)} className="w-full rounded border border-zinc-300 px-2 py-1 text-sm">
+                <option value="室内夜晚">室内夜晚</option>
+                <option value="雨夜窗边">雨夜窗边</option>
+                <option value="森林露营">森林露营</option>
+                <option value="书房学习">书房学习</option>
+              </select>
+            </label>
+            <label className="space-y-1 md:col-span-1">
+              <span className="text-xs text-zinc-500">内容风格</span>
+              <select value={contentMode} onChange={(e) => setContentMode(e.target.value)} className="w-full rounded border border-zinc-300 px-2 py-1 text-sm">
+                <option value="实操教程">实操教程</option>
+                <option value="故事体验">故事体验</option>
+                <option value="避坑清单">避坑清单</option>
+                <option value="沉浸氛围">沉浸氛围</option>
+              </select>
             </label>
             <label className="space-y-1 md:col-span-6">
               <span className="text-xs text-zinc-500">参考视频池（每行1条，先从发现页加入，最多3条）</span>
@@ -250,7 +290,13 @@ export default function PlannerPage() {
                     <td className="px-3 py-2">{e.targetKeyword || "-"}</td>
                     <td className="px-3 py-2">{e.plannedDate ? new Date(e.plannedDate).toLocaleDateString() : "-"}</td>
                     <td className="px-3 py-2 text-zinc-600">{(e.titleOptions || []).slice(0, 2).join(" / ")}</td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-3 py-2 text-right space-x-2">
+                      <button
+                        onClick={() => openEpisodeDetail(e.id)}
+                        className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
+                      >
+                        查看
+                      </button>
                       <button
                         onClick={() => deleteEpisode(e.id)}
                         className="rounded border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
@@ -264,6 +310,55 @@ export default function PlannerPage() {
             </table>
           </div>
         </section>
+
+        {selectedEpisode ? (
+          <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-zinc-700">历史详情：{selectedEpisode.topic}</h3>
+              <button onClick={() => setSelectedEpisode(null)} className="text-xs text-zinc-500 underline">收起</button>
+            </div>
+            {(() => {
+              let outline: Record<string, unknown> = {};
+              try {
+                outline = selectedEpisode.scriptOutline ? JSON.parse(selectedEpisode.scriptOutline) : {};
+              } catch {
+                outline = {};
+              }
+              const opening = Array.isArray(outline.opening15s) ? outline.opening15s as string[] : [];
+              const timeline = Array.isArray(outline.timeline)
+                ? outline.timeline as Array<{ time?: string; segment?: string; voiceover?: string; visuals?: string }>
+                : [];
+              const refs = Array.isArray(outline.referenceVideos) ? outline.referenceVideos as string[] : [];
+
+              return (
+                <div className="space-y-3 text-sm">
+                  <p><span className="text-zinc-500">标题：</span>{selectedEpisode.titleOptions?.[0] || "-"}</p>
+                  {refs.length ? <p><span className="text-zinc-500">参考视频：</span>{refs.join(" | ")}</p> : null}
+                  {opening.length ? (
+                    <div>
+                      <p className="mb-1 text-zinc-500">开场口播</p>
+                      <ul className="space-y-1">{opening.map((x, i) => <li key={i}>• {x}</li>)}</ul>
+                    </div>
+                  ) : null}
+                  {timeline.length ? (
+                    <div>
+                      <p className="mb-1 text-zinc-500">分镜详情</p>
+                      <div className="space-y-2">
+                        {timeline.map((t, i) => (
+                          <div key={i} className="rounded bg-zinc-50 p-2">
+                            <p>{t.time || "-"} · {t.segment || "-"}</p>
+                            <p className="text-zinc-700">口播：{t.voiceover || "-"}</p>
+                            <p className="text-zinc-600">画面：{t.visuals || "-"}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })()}
+          </section>
+        ) : null}
       </div>
     </main>
   );

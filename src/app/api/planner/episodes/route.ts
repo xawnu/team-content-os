@@ -3,8 +3,19 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const episodeId = String(searchParams.get("episodeId") || "").trim();
+
+    if (episodeId) {
+      const episode = await prisma.episodePlan.findUnique({
+        where: { id: episodeId },
+        include: { metrics: true },
+      });
+      return NextResponse.json({ ok: true, episode });
+    }
+
     const episodes = await prisma.episodePlan.findMany({
       orderBy: { createdAt: "desc" },
       take: 50,

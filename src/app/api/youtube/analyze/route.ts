@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "No discover runs found" }, { status: 404 });
     }
 
-    const titles = run.candidates.flatMap((c) => {
+    const titles = run.candidates.flatMap((c: (typeof run.candidates)[number]) => {
       const v = c.sampleTitles as unknown;
       return Array.isArray(v) ? (v as string[]) : [];
     });

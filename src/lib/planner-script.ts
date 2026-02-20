@@ -31,6 +31,9 @@ export async function generateDetailedScriptFromSeeds(input: {
   topicLock?: string;
   bannedWords?: string[];
   referenceVideos?: string[];
+  sceneMode?: string;
+  contentMode?: string;
+  variationNonce?: string;
 }) {
   const seeds = input.seedText
     .split(/\n|,/) 
@@ -65,6 +68,9 @@ export async function generateDetailedScriptFromSeeds(input: {
           topicLock,
           bannedWords,
           requiredCount,
+          sceneMode: input.sceneMode || "室内夜晚",
+          contentMode: input.contentMode || "实操教程",
+          variationNonce: input.variationNonce || "v0",
           requirement: {
             count: 1,
             outputFields: [
@@ -91,6 +97,8 @@ export async function generateDetailedScriptFromSeeds(input: {
               "若requiredCount=20，timeline必须覆盖要点1到要点20，不能遗漏",
               "timeline至少8段；每段voiceover>=60字，visuals>=40字，禁止泛化描述",
               "每段必须给出具体镜头动作（机位/景别/转场之一）",
+              "严格遵循sceneMode场景与contentMode内容风格",
+              "variationNonce代表本次版本号，本次输出必须与常见模板明显不同",
             ],
           },
           references: { seeds, sampledTitles, referenceVideos },

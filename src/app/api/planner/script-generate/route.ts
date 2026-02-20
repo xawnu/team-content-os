@@ -41,8 +41,21 @@ export async function POST(request: NextRequest) {
     const referenceVideos = Array.isArray(body.referenceVideos)
       ? body.referenceVideos.map((x: unknown) => String(x).trim()).filter(Boolean)
       : String(body.referenceVideos || "").split(/\n/).map((x) => x.trim()).filter(Boolean);
+    const sceneMode = String(body.sceneMode || "室内夜晚");
+    const contentMode = String(body.contentMode || "实操教程");
+    const variationNonce = String(body.variationNonce || Date.now());
 
-    const raw = await generateDetailedScriptFromSeeds({ seedText, language, direction, topicLock, bannedWords, referenceVideos });
+    const raw = await generateDetailedScriptFromSeeds({
+      seedText,
+      language,
+      direction,
+      topicLock,
+      bannedWords,
+      referenceVideos,
+      sceneMode,
+      contentMode,
+      variationNonce,
+    });
     const normalized = (raw as Record<string, unknown>)?.["0"] && typeof (raw as Record<string, unknown>)["0"] === "object"
       ? { ...(raw as Record<string, unknown>)["0"] as Record<string, unknown>, references: (raw as Record<string, unknown>).references, provider: (raw as Record<string, unknown>).provider }
       : (raw as Record<string, unknown>);
@@ -79,6 +92,9 @@ export async function POST(request: NextRequest) {
           provider: script.provider,
           seedText,
           referenceVideos,
+          sceneMode,
+          contentMode,
+          variationNonce,
         }),
         voiceoverOutline: script.opening15s.join("\n"),
         assetsNeeded: script.tags.join(", "),
