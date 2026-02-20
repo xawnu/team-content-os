@@ -9,6 +9,15 @@ type VideosItem = {
   contentDetails?: { duration?: string };
 };
 
+type ChannelItem = {
+  id: string;
+  contentDetails?: {
+    relatedPlaylists?: {
+      uploads?: string;
+    };
+  };
+};
+
 type SearchItem = {
   id?: { channelId?: string };
   snippet?: {
@@ -105,15 +114,22 @@ export async function resolveChannelId(input: string): Promise<string> {
 }
 
 export async function getRecentTitles(channelId: string): Promise<string[]> {
-  const search = await ytFetch<{ items: { id?: { videoId?: string } }[] }>("/search", {
-    part: "id",
-    channelId,
-    type: "video",
-    order: "date",
+  const channel = await ytFetch<{ items: ChannelItem[] }>("/channels", {
+    part: "contentDetails",
+    id: channelId,
+    maxResults: 1,
+  });
+
+  const uploads = channel.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+  if (!uploads) return [];
+
+  const playlist = await ytFetch<{ items: { contentDetails?: { videoId?: string } }[] }>("/playlistItems", {
+    part: "contentDetails",
+    playlistId: uploads,
     maxResults: 12,
   });
 
-  const ids = (search.items ?? []).map((x) => x.id?.videoId).filter(Boolean) as string[];
+  const ids = (playlist.items ?? []).map((x) => x.contentDetails?.videoId).filter(Boolean) as string[];
   if (!ids.length) return [];
 
   const videos = await ytFetch<{ items: VideosItem[] }>("/videos", {
@@ -134,7 +150,7 @@ export async function findSimilarChannels(seedInput: string) {
     part: "snippet",
     type: "channel",
     q: query,
-    maxResults: 20,
+    maxResults: 12,
     order: "relevance",
   });
 

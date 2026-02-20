@@ -49,8 +49,20 @@ export async function GET(request: NextRequest) {
       ...data,
     });
   } catch (error) {
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    if (msg.includes("quotaExceeded") || msg.includes("YouTube API 403")) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "YouTube API 今日配额已用尽，请更换 API Key 或等待配额重置（通常按太平洋时间每日重置）。",
+          code: "YT_QUOTA_EXCEEDED",
+        },
+        { status: 429 },
+      );
+    }
+
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Unknown error" },
+      { ok: false, error: msg },
       { status: 500 },
     );
   }
