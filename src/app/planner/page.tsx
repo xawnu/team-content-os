@@ -32,8 +32,8 @@ export default function PlannerPage() {
   const [loading, setLoading] = useState(false);
   const [seedText, setSeedText] = useState("@homesteadrootss");
   const [direction, setDirection] = useState("同类型视频详细文案");
-  const [topicLock, setTopicLock] = useState("rain sounds");
-  const [bannedWords, setBannedWords] = useState("植物,甲醛,净化空气");
+  const [topicLock, setTopicLock] = useState("");
+  const [bannedWords, setBannedWords] = useState("");
   const [sceneMode, setSceneMode] = useState("室内夜晚");
   const [contentMode, setContentMode] = useState("实操教程");
   const [referenceVideosText, setReferenceVideosText] = useState("");
@@ -157,12 +157,12 @@ export default function PlannerPage() {
               />
             </label>
             <label className="space-y-1 md:col-span-1">
-              <span className="text-xs text-zinc-500">主题锁定（防跑偏）</span>
+              <span className="text-xs text-zinc-500">主题锁定（可选，不填则按参考视频自动）</span>
               <input
                 value={topicLock}
                 onChange={(e) => setTopicLock(e.target.value)}
                 className="w-full rounded border border-zinc-300 px-2 py-1 text-sm"
-                placeholder="例如：rain sounds"
+                placeholder="例如：homestead chicken coop（可留空）"
               />
             </label>
             <label className="space-y-1 md:col-span-1">
