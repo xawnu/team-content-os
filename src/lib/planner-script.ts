@@ -16,6 +16,25 @@ export type DetailedScriptResult = {
   provider: "ai" | "template";
 };
 
+function buildFallbackTimeline(items: string[], sceneMode: string, contentMode: string) {
+  const base = items.length ? items : ["核心要点1", "核心要点2", "核心要点3", "核心要点4", "核心要点5", "核心要点6", "核心要点7", "核心要点8"];
+  const chunkSize = Math.max(1, Math.ceil(base.length / 8));
+  const parts: string[][] = [];
+  for (let i = 0; i < base.length; i += chunkSize) parts.push(base.slice(i, i + chunkSize));
+  while (parts.length < 8) parts.push([`补充要点${parts.length + 1}`]);
+
+  return parts.slice(0, 8).map((group, idx) => {
+    const start = idx * chunkSize + 1;
+    const end = Math.min(start + group.length - 1, base.length);
+    return {
+      time: `${String(idx).padStart(2, "0")}:00-${String(idx).padStart(2, "0")}:45`,
+      segment: `第${idx + 1}段 [要点${start}${end > start ? `-${end}` : ""}]`,
+      voiceover: `本段采用${contentMode}表达，围绕${group.join("、")}展开具体讲解。先说明场景目标，再给出可执行动作与注意事项，避免空话，确保观众听完即可照做并获得明确结果。`,
+      visuals: `画面采用${sceneMode}场景，使用近景+中景+特写交替机位，包含推镜与转场。先展示关键对象，再切换操作细节，最后给出结果对比镜头与字幕标注。`,
+    };
+  });
+}
+
 function parseRequiredCount(text: string): number | null {
   const m = text.match(/(\d{1,3})\s*(种|个|条|items?)/i);
   if (!m) return null;
@@ -107,7 +126,9 @@ export async function generateDetailedScriptFromSeeds(input: {
     ]);
 
     const contentItems = Array.isArray(ai.contentItems) ? ai.contentItems.map(String) : [];
-    const timeline = Array.isArray(ai.timeline) ? ai.timeline : [];
+    const timeline = Array.isArray(ai.timeline) && ai.timeline.length
+      ? ai.timeline
+      : buildFallbackTimeline(contentItems, input.sceneMode || "室内夜晚", input.contentMode || "实操教程");
 
     if (requiredCount && contentItems.length !== requiredCount) {
       throw new Error(`数字承诺不一致: 要求${requiredCount}，返回${contentItems.length}`);
@@ -161,6 +182,7 @@ export async function generateDetailedScriptFromSeeds(input: {
     return {
       ...ai,
       contentItems,
+      timeline,
       references: { seeds, sampledTitles, referenceVideos },
       provider: "ai" as const,
     };
