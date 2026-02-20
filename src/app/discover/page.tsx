@@ -204,13 +204,7 @@ export default function DiscoverPage() {
             <h1 className="text-2xl font-bold">增长频道发现</h1>
             <p className="text-sm text-zinc-600">可视化查看 YouTube 快增长频道候选池</p>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Link href="/" className="rounded-md border border-zinc-300 px-3 py-1.5 text-zinc-700 hover:bg-zinc-100">首页</Link>
-            <Link href="/similar" className="rounded-md border border-zinc-300 px-3 py-1.5 text-zinc-700 hover:bg-zinc-100">种子频道找同类</Link>
-            <a href="#history" className="rounded-md border border-zinc-300 px-3 py-1.5 text-zinc-700 hover:bg-zinc-100">历史记录</a>
-            <Link href="/planner" className="rounded-md border border-zinc-300 px-3 py-1.5 text-zinc-700 hover:bg-zinc-100">规划器</Link>
-            <Link href="/tracker" className="rounded-md border border-zinc-300 px-3 py-1.5 text-zinc-700 hover:bg-zinc-100">追踪器</Link>
-          </div>
+          <div className="text-xs text-zinc-500">历史记录在下方，可直接下滑查看</div>
         </header>
 
         <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">

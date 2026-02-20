@@ -99,10 +99,7 @@ export default function SimilarPage() {
             <h1 className="text-2xl font-bold">种子频道找同类</h1>
             <p className="text-sm text-zinc-600">输入 channelId / @handle / 频道链接，快速找同类频道</p>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Link href="/" className="rounded-md border border-zinc-300 px-3 py-1.5 text-zinc-700 hover:bg-zinc-100">首页</Link>
-            <Link href="/discover" className="rounded-md border border-zinc-300 px-3 py-1.5 text-zinc-700 hover:bg-zinc-100">增长频道发现</Link>
-          </div>
+          <div className="text-xs text-zinc-500">使用顶部统一导航切换模块</div>
         </header>
 
         <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">

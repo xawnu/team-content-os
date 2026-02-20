@@ -131,10 +131,7 @@ export default function PlannerPage() {
               <h1 className="text-2xl font-bold">文案生成器</h1>
               <p className="text-sm text-zinc-600">根据参考频道，生成 1 篇同类型视频详细文案</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Link href="/discover" className="rounded border border-zinc-300 px-3 py-1 text-sm">发现页</Link>
-              <Link href="/similar" className="rounded border border-zinc-300 px-3 py-1 text-sm">种子找同类</Link>
-            </div>
+            <div className="text-xs text-zinc-500">使用顶部统一导航切换模块</div>
           </div>
 
           <div className="grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 md:grid-cols-6">
