@@ -59,21 +59,34 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const localCandidates = await prisma.discoverCandidate.findMany({
+    const localCandidatesRaw = await prisma.discoverCandidate.findMany({
       select: { channelId: true, channelTitle: true, channelUrl: true },
       distinct: ["channelId"],
       orderBy: { createdAt: "desc" },
-      take: 80,
+      take: 160,
     });
 
-    if (!localCandidates.length) {
+    if (!localCandidatesRaw.length) {
       return NextResponse.json(
         { ok: false, error: "本地候选频道为空。请先在【增长频道发现】跑一次数据，再来找同类。" },
         { status: 400 },
       );
     }
 
-    const data = await findSimilarChannels(channelId, localCandidates);
+    let localCandidates = localCandidatesRaw;
+    if (forceRefresh) {
+      const prev = await prisma.similarRun.findFirst({
+        where: { seedInput: channelId },
+        include: { items: { select: { channelId: true } } },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const prevIds = new Set((prev?.items ?? []).map((x) => x.channelId));
+      const filtered = localCandidatesRaw.filter((c) => !prevIds.has(c.channelId));
+      if (filtered.length >= 20) localCandidates = filtered;
+    }
+
+    const data = await findSimilarChannels(channelId, localCandidates.slice(0, 80));
 
     let runId: string | null = null;
 
