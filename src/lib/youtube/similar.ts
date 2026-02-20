@@ -28,6 +28,12 @@ type SearchItem = {
   };
 };
 
+type CandidateChannel = {
+  channelId: string;
+  channelTitle?: string;
+  channelUrl?: string;
+};
+
 const YT_API = "https://www.googleapis.com/youtube/v3";
 
 function tokenize(text: string): string[] {
@@ -98,17 +104,25 @@ export async function resolveChannelId(input: string): Promise<string> {
     else handleOrQuery = parts.join(" ");
   }
 
-  if (handleOrQuery.startsWith("@")) handleOrQuery = handleOrQuery.slice(1);
+  if (handleOrQuery.startsWith("@")) {
+    const handle = handleOrQuery.slice(1);
+    const byHandle = await ytFetch<{ items: ChannelItem[] }>("/channels", {
+      part: "id",
+      forHandle: handle,
+      maxResults: 1,
+    });
+    const channelId = byHandle.items?.[0]?.id;
+    if (channelId) return channelId;
+  }
 
-  const search = await ytFetch<{ items: SearchItem[] }>("/search", {
-    part: "snippet",
-    type: "channel",
-    q: handleOrQuery,
+  // legacy username fallback (1 unit)
+  const byUsername = await ytFetch<{ items: ChannelItem[] }>("/channels", {
+    part: "id",
+    forUsername: handleOrQuery.replace(/^@/, ""),
     maxResults: 1,
   });
-
-  const channelId = search.items?.[0]?.snippet?.channelId;
-  if (!channelId) throw new Error("Unable to resolve channelId from input");
+  const channelId = byUsername.items?.[0]?.id;
+  if (!channelId) throw new Error("Unable to resolve channelId from input (请优先使用 UC... 或 @handle)");
 
   return channelId;
 }
@@ -140,25 +154,13 @@ export async function getRecentTitles(channelId: string): Promise<string[]> {
   return (videos.items ?? []).map((v) => v.snippet?.title ?? "").filter(Boolean);
 }
 
-export async function findSimilarChannels(seedInput: string) {
+export async function findSimilarChannels(seedInput: string, candidateChannels: CandidateChannel[] = []) {
   const seedChannelId = await resolveChannelId(seedInput);
   const seedTitles = await getRecentTitles(seedChannelId);
   const seedTerms = topTerms(seedTitles);
   const query = seedTerms.slice(0, 4).join(" ") || "homestead";
 
-  const search = await ytFetch<{ items: SearchItem[] }>("/search", {
-    part: "snippet",
-    type: "channel",
-    q: query,
-    maxResults: 12,
-    order: "relevance",
-  });
-
-  const entries: Array<[string, SearchItem]> = (search.items ?? [])
-    .filter((i): i is SearchItem => Boolean(i?.snippet?.channelId))
-    .map((i) => [i.snippet!.channelId!, i]);
-
-  const candidates = [...new Map<string, SearchItem>(entries).values()];
+  const candidates = candidateChannels;
 
   const rows = [] as {
     channelId: string;
@@ -169,7 +171,7 @@ export async function findSimilarChannels(seedInput: string) {
   }[];
 
   for (const c of candidates) {
-    const channelId = c.snippet?.channelId;
+    const channelId = c.channelId;
     if (!channelId || channelId === seedChannelId) continue;
 
     const titles = await getRecentTitles(channelId);
@@ -181,8 +183,8 @@ export async function findSimilarChannels(seedInput: string) {
 
     rows.push({
       channelId,
-      channelTitle: c.snippet?.channelTitle ?? "Unknown",
-      channelUrl: `https://www.youtube.com/channel/${channelId}`,
+      channelTitle: c.channelTitle ?? "Unknown",
+      channelUrl: c.channelUrl ?? `https://www.youtube.com/channel/${channelId}`,
       similarity: Number((similarity * 100).toFixed(2)),
       matchedTerms,
     });

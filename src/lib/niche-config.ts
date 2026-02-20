@@ -56,7 +56,7 @@ export async function listNichePresets(): Promise<NichePreset[]> {
 
   if (!rows.length) return DEFAULT_NICHE_PRESETS;
 
-  return rows.map((row) => ({
+  return rows.map((row: (typeof rows)[number]) => ({
     slug: row.slug,
     name: row.name,
     primaryQuery: row.primaryQuery,

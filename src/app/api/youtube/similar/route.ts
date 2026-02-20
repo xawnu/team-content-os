@@ -17,7 +17,22 @@ export async function GET(request: NextRequest) {
     }
 
     const persist = searchParams.get("persist") !== "0";
-    const data = await findSimilarChannels(channelId);
+
+    const localCandidates = await prisma.discoverCandidate.findMany({
+      select: { channelId: true, channelTitle: true, channelUrl: true },
+      distinct: ["channelId"],
+      orderBy: { createdAt: "desc" },
+      take: 80,
+    });
+
+    if (!localCandidates.length) {
+      return NextResponse.json(
+        { ok: false, error: "本地候选频道为空。请先在【增长频道发现】跑一次数据，再来找同类。" },
+        { status: 400 },
+      );
+    }
+
+    const data = await findSimilarChannels(channelId, localCandidates);
 
     let runId: string | null = null;
 
