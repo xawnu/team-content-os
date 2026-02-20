@@ -104,7 +104,9 @@ export async function generateWeeklyPlan(input: GeneratePlanInput) {
 
   if (!run) throw new Error("No discover run found. Please run discovery first.");
 
-  const titles = run.candidates.flatMap((c) => (Array.isArray(c.sampleTitles) ? (c.sampleTitles as string[]) : []));
+  const titles = run.candidates.flatMap((c: (typeof run.candidates)[number]) =>
+    Array.isArray(c.sampleTitles) ? (c.sampleTitles as string[]) : [],
+  );
   const keywords = topKeywords(titles);
   const pivot = keywords.length ? keywords : [run.query, "beginner", "guide", "tips", "mistakes"];
 
@@ -156,10 +158,12 @@ export async function generateWeeklyPlanV2(input: GeneratePlanInput & { ai?: boo
 
   if (!run) throw new Error("No discover run found. Please run discovery first.");
 
-  const titles = run.candidates.flatMap((c) => (Array.isArray(c.sampleTitles) ? (c.sampleTitles as string[]) : []));
+  const titles = run.candidates.flatMap((c: (typeof run.candidates)[number]) =>
+    Array.isArray(c.sampleTitles) ? (c.sampleTitles as string[]) : [],
+  );
   const similar = await prisma.similarRun.findFirst({ orderBy: { createdAt: "desc" }, include: { items: true } });
   const similarWords = (similar?.items ?? [])
-    .flatMap((i) => (Array.isArray(i.matchedTerms) ? (i.matchedTerms as string[]) : []))
+    .flatMap((i: (typeof similar.items)[number]) => (Array.isArray(i.matchedTerms) ? (i.matchedTerms as string[]) : []))
     .slice(0, 12);
 
   let pivot = Array.from(new Set([...topKeywords(titles, 20), ...similarWords])).slice(0, 15);

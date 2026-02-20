@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
           seedChannelId: cached.seedChannelId,
           query: cached.query,
           seedTerms: Array.isArray(cached.seedTerms) ? cached.seedTerms : [],
-          items: cached.items.map((i) => ({
+          items: cached.items.map((i: (typeof cached.items)[number]) => ({
             channelId: i.channelId,
             channelTitle: i.channelTitle,
             channelUrl: i.channelUrl,
@@ -81,8 +81,8 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: "desc" },
       });
 
-      const prevIds = new Set((prev?.items ?? []).map((x) => x.channelId));
-      const filtered = localCandidatesRaw.filter((c) => !prevIds.has(c.channelId));
+      const prevIds = new Set((prev?.items ?? []).map((x: (typeof prev.items)[number]) => x.channelId));
+      const filtered = localCandidatesRaw.filter((c: (typeof localCandidatesRaw)[number]) => !prevIds.has(c.channelId));
       if (filtered.length >= 20) localCandidates = filtered;
     }
 

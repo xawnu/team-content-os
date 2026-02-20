@@ -32,7 +32,11 @@ npm run dev
 配置环境变量：
 
 ```bash
+# 单 key（兼容）
 YOUTUBE_API_KEY=your_key
+
+# 或多 key 轮询（推荐）
+YOUTUBE_API_KEYS=key1,key2,key3
 ```
 
 本地测试：

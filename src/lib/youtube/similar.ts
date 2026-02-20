@@ -1,3 +1,5 @@
+import { getYouTubeKeys, isQuotaExceeded } from "@/lib/youtube/keypool";
+
 type VideosItem = {
   id: string;
   snippet?: {
@@ -71,21 +73,32 @@ function overlapScore(a: string[], b: string[]): number {
 }
 
 async function ytFetch<T>(path: string, params: Record<string, string | number | undefined>): Promise<T> {
-  const key = process.env.YOUTUBE_API_KEY;
-  if (!key) throw new Error("YOUTUBE_API_KEY is missing");
+  const keys = getYouTubeKeys();
+  if (!keys.length) throw new Error("YOUTUBE_API_KEY(S) is missing");
 
-  const q = new URLSearchParams();
-  Object.entries({ ...params, key }).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== "") q.set(k, String(v));
-  });
+  let lastError = "";
 
-  const res = await fetch(`${YT_API}${path}?${q.toString()}`, {
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-  });
+  for (const key of keys) {
+    const q = new URLSearchParams();
+    Object.entries({ ...params, key }).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") q.set(k, String(v));
+    });
 
-  if (!res.ok) throw new Error(`YouTube API ${res.status}: ${await res.text()}`);
-  return res.json() as Promise<T>;
+    const res = await fetch(`${YT_API}${path}?${q.toString()}`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+
+    if (res.ok) return res.json() as Promise<T>;
+
+    const text = await res.text();
+    lastError = `YouTube API ${res.status}: ${text}`;
+    if (!(res.status === 403 && isQuotaExceeded(text))) {
+      throw new Error(lastError);
+    }
+  }
+
+  throw new Error(lastError || "YouTube API quota exceeded on all keys");
 }
 
 export async function resolveChannelId(input: string): Promise<string> {
