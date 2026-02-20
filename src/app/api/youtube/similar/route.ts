@@ -81,7 +81,8 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: "desc" },
       });
 
-      const prevIds = new Set((prev?.items ?? []).map((x: (typeof prev.items)[number]) => x.channelId));
+      const prevItems = prev?.items ?? [];
+      const prevIds = new Set(prevItems.map((x: (typeof prevItems)[number]) => x.channelId));
       const filtered = localCandidatesRaw.filter((c: (typeof localCandidatesRaw)[number]) => !prevIds.has(c.channelId));
       if (filtered.length >= 20) localCandidates = filtered;
     }
