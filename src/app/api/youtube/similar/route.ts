@@ -17,6 +17,39 @@ export async function GET(request: NextRequest) {
     }
 
     const persist = searchParams.get("persist") !== "0";
+    const useCache = searchParams.get("cache") !== "0";
+
+    if (useCache) {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const cached = await prisma.similarRun.findFirst({
+        where: {
+          seedInput: channelId,
+          createdAt: { gte: since },
+        },
+        include: { items: true },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (cached) {
+        return NextResponse.json({
+          ok: true,
+          cached: true,
+          persist: false,
+          runId: cached.id,
+          seedInput: cached.seedInput,
+          seedChannelId: cached.seedChannelId,
+          query: cached.query,
+          seedTerms: Array.isArray(cached.seedTerms) ? cached.seedTerms : [],
+          items: cached.items.map((i) => ({
+            channelId: i.channelId,
+            channelTitle: i.channelTitle,
+            channelUrl: i.channelUrl,
+            similarity: i.similarity,
+            matchedTerms: Array.isArray(i.matchedTerms) ? i.matchedTerms : [],
+          })),
+        });
+      }
+    }
 
     const localCandidates = await prisma.discoverCandidate.findMany({
       select: { channelId: true, channelTitle: true, channelUrl: true },
