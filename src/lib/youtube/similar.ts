@@ -150,13 +150,31 @@ export async function getRecentTitles(channelId: string): Promise<string[]> {
   const uploads = channel.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
   if (!uploads) return [];
 
-  const playlist = await ytFetch<{ items: { contentDetails?: { videoId?: string } }[] }>("/playlistItems", {
-    part: "contentDetails",
-    playlistId: uploads,
-    maxResults: 12,
-  });
+  let ids: string[] = [];
 
-  const ids = (playlist.items ?? []).map((x) => x.contentDetails?.videoId).filter(Boolean) as string[];
+  try {
+    const playlist = await ytFetch<{ items: { contentDetails?: { videoId?: string } }[] }>("/playlistItems", {
+      part: "contentDetails",
+      playlistId: uploads,
+      maxResults: 12,
+    });
+
+    ids = (playlist.items ?? []).map((x) => x.contentDetails?.videoId).filter(Boolean) as string[];
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "";
+    if (!msg.includes("playlistNotFound")) throw error;
+
+    // fallback: 部分频道 uploads playlist 不可用，退化为 search.list 取最近视频
+    const fallback = await ytFetch<{ items: { id?: { videoId?: string } }[] }>("/search", {
+      part: "id",
+      channelId,
+      type: "video",
+      order: "date",
+      maxResults: 8,
+    });
+    ids = (fallback.items ?? []).map((x) => x.id?.videoId).filter(Boolean) as string[];
+  }
+
   if (!ids.length) return [];
 
   const videos = await ytFetch<{ items: VideosItem[] }>("/videos", {
