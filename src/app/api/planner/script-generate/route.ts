@@ -38,8 +38,11 @@ export async function POST(request: NextRequest) {
       .split(/,|\n/)
       .map((s) => s.trim())
       .filter(Boolean);
+    const referenceVideos = Array.isArray(body.referenceVideos)
+      ? body.referenceVideos.map((x: unknown) => String(x).trim()).filter(Boolean)
+      : String(body.referenceVideos || "").split(/\n/).map((x) => x.trim()).filter(Boolean);
 
-    const raw = await generateDetailedScriptFromSeeds({ seedText, language, direction, topicLock, bannedWords });
+    const raw = await generateDetailedScriptFromSeeds({ seedText, language, direction, topicLock, bannedWords, referenceVideos });
     const normalized = (raw as Record<string, unknown>)?.["0"] && typeof (raw as Record<string, unknown>)["0"] === "object"
       ? { ...(raw as Record<string, unknown>)["0"] as Record<string, unknown>, references: (raw as Record<string, unknown>).references, provider: (raw as Record<string, unknown>).provider }
       : (raw as Record<string, unknown>);
@@ -75,6 +78,7 @@ export async function POST(request: NextRequest) {
           differentiation: script.differentiation,
           provider: script.provider,
           seedText,
+          referenceVideos,
         }),
         voiceoverOutline: script.opening15s.join("\n"),
         assetsNeeded: script.tags.join(", "),

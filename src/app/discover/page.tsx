@@ -159,6 +159,15 @@ export default function DiscoverPage() {
     setMinDurationSec(niche.minDurationSec);
   }, [selectedNiche, niches]);
 
+  function addToReferencePool(row: ChannelRow) {
+    const picks = row.sampleTitles.slice(0, 3).map((t) => `${t} | ${row.channelTitle}`);
+    const old = typeof window !== "undefined" ? window.localStorage.getItem("tcos_reference_videos") : null;
+    const existing = old ? (JSON.parse(old) as string[]) : [];
+    const merged = [...new Set([...(existing || []), ...picks])].slice(0, 3);
+    window.localStorage.setItem("tcos_reference_videos", JSON.stringify(merged));
+    alert(`已加入参考视频池：${merged.length}条`);
+  }
+
   async function run() {
     setLoading(true);
     setError(null);
@@ -268,7 +277,17 @@ export default function DiscoverPage() {
                         <td className="px-3 py-2 text-right">{num(row.videoCount7d)}</td>
                         <td className="px-3 py-2 text-right">{num(row.viewsSum7d)}</td>
                         <td className="px-3 py-2 text-right">{num(row.viewsMedian7d)}</td>
-                        <td className="px-3 py-2 text-zinc-600">{row.sampleTitles.join(" / ")}</td>
+                        <td className="px-3 py-2 text-zinc-600">
+                          <div className="space-y-1">
+                            <div>{row.sampleTitles.join(" / ")}</div>
+                            <button
+                              onClick={() => addToReferencePool(row)}
+                              className="rounded border border-indigo-300 px-2 py-0.5 text-xs text-indigo-700 hover:bg-indigo-50"
+                            >
+                              加入参考视频池
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

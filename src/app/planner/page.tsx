@@ -32,6 +32,7 @@ export default function PlannerPage() {
   const [direction, setDirection] = useState("同类型视频详细文案");
   const [topicLock, setTopicLock] = useState("rain sounds");
   const [bannedWords, setBannedWords] = useState("植物,甲醛,净化空气");
+  const [referenceVideosText, setReferenceVideosText] = useState("");
   const [script, setScript] = useState<DetailedScript | null>(null);
   const [error, setError] = useState<string>("");
 
@@ -42,13 +43,24 @@ export default function PlannerPage() {
   }
 
   async function generateOneScript() {
+    const referenceVideos = referenceVideosText
+      .split(/\n/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 3);
+
+    if (!referenceVideos.length) {
+      setError("请先在参考视频池里放入1-3条视频再生成");
+      return;
+    }
+
     setLoading(true);
     setError("");
     try {
       const res = await fetch("/api/planner/script-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seedText, direction, topicLock, bannedWords, language: "zh" }),
+        body: JSON.stringify({ seedText, direction, topicLock, bannedWords, referenceVideos, language: "zh" }),
       });
       const json = await res.json();
       if (!res.ok || !json?.ok) throw new Error(json?.error || "生成失败");
@@ -79,6 +91,15 @@ export default function PlannerPage() {
 
   useEffect(() => {
     loadEpisodes();
+    const cached = typeof window !== "undefined" ? window.localStorage.getItem("tcos_reference_videos") : null;
+    if (cached) {
+      try {
+        const arr = JSON.parse(cached) as string[];
+        if (Array.isArray(arr) && arr.length) setReferenceVideosText(arr.slice(0, 3).join("\n"));
+      } catch {
+        // ignore bad cache
+      }
+    }
   }, []);
 
   return (
@@ -129,6 +150,15 @@ export default function PlannerPage() {
                 onChange={(e) => setBannedWords(e.target.value)}
                 className="w-full rounded border border-zinc-300 px-2 py-1 text-sm"
                 placeholder="例如：植物,甲醛"
+              />
+            </label>
+            <label className="space-y-1 md:col-span-6">
+              <span className="text-xs text-zinc-500">参考视频池（每行1条，先从发现页加入，最多3条）</span>
+              <textarea
+                value={referenceVideosText}
+                onChange={(e) => setReferenceVideosText(e.target.value)}
+                className="min-h-20 w-full rounded border border-zinc-300 px-2 py-1 text-sm"
+                placeholder="示例：Rain Sounds for Sleep - https://youtube.com/..."
               />
             </label>
             <div className="flex items-end md:col-span-6">

@@ -12,7 +12,7 @@ export type DetailedScriptResult = {
   publishCopy: string;
   tags: string[];
   differentiation: string[];
-  references: { seeds: string[]; sampledTitles: string[] };
+  references: { seeds: string[]; sampledTitles: string[]; referenceVideos: string[] };
   provider: "ai" | "template";
 };
 
@@ -30,6 +30,7 @@ export async function generateDetailedScriptFromSeeds(input: {
   direction?: string;
   topicLock?: string;
   bannedWords?: string[];
+  referenceVideos?: string[];
 }) {
   const seeds = input.seedText
     .split(/\n|,/) 
@@ -46,6 +47,8 @@ export async function generateDetailedScriptFromSeeds(input: {
   const requiredCount = parseRequiredCount(input.direction || "");
   const topicLock = (input.topicLock || "").trim();
   const bannedWords = (input.bannedWords || []).map((w) => w.trim()).filter(Boolean);
+  const referenceVideos = (input.referenceVideos || []).map((x) => x.trim()).filter(Boolean).slice(0, 10);
+  if (!referenceVideos.length) throw new Error("请先选择1-3条参考视频再生成");
 
   try {
     const ai = await openRouterJson<Omit<DetailedScriptResult, "provider">>([
@@ -88,7 +91,7 @@ export async function generateDetailedScriptFromSeeds(input: {
               "若requiredCount=20，timeline必须覆盖要点1到要点20，不能遗漏",
             ],
           },
-          references: { seeds, sampledTitles },
+          references: { seeds, sampledTitles, referenceVideos },
         }),
       },
     ]);
@@ -132,7 +135,7 @@ export async function generateDetailedScriptFromSeeds(input: {
     return {
       ...ai,
       contentItems,
-      references: { seeds, sampledTitles },
+      references: { seeds, sampledTitles, referenceVideos },
       provider: "ai" as const,
     };
   } catch (error) {
