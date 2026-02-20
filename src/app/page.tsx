@@ -5,15 +5,16 @@ export const dynamic = "force-dynamic";
 
 async function getDashboardStats() {
   try {
-    const [teams, users, projects, channels, episodes] = await Promise.all([
+    const [teams, users, projects, channels, episodes, discoverRuns] = await Promise.all([
       prisma.team.count(),
       prisma.user.count(),
       prisma.project.count(),
       prisma.competitorChannel.count(),
       prisma.episodePlan.count(),
+      prisma.discoverRun.count(),
     ]);
 
-    return { teams, users, projects, channels, episodes, dbConnected: true };
+    return { teams, users, projects, channels, episodes, discoverRuns, dbConnected: true };
   } catch {
     return {
       teams: 0,
@@ -21,119 +22,80 @@ async function getDashboardStats() {
       projects: 0,
       channels: 0,
       episodes: 0,
+      discoverRuns: 0,
       dbConnected: false,
     };
   }
 }
 
-const modules = [
-  {
-    title: "1) 频道情报库",
-    desc: "采集竞品频道和视频元数据，沉淀统一可检索文本资产。",
-  },
-  {
-    title: "2) 模式分析器",
-    desc: "提炼爆款标题模板、内容主题簇、风险词和差异化机会。",
-  },
-  {
-    title: "3) 选题规划器",
-    desc: "自动生成周计划、单期 Brief、脚本骨架和素材清单。",
-  },
-  {
-    title: "4) 复盘追踪器",
-    desc: "发布后回填 CTR/留存/完播，自动给出下期优化建议。",
-  },
-];
+function MetricCard({ label, value, hint }: { label: string; value: number; hint: string }) {
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+      <p className="text-xs uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className="mt-2 text-3xl font-semibold text-zinc-900">{value}</p>
+      <p className="mt-1 text-xs text-zinc-500">{hint}</p>
+    </div>
+  );
+}
 
 export default async function Home() {
   const stats = await getDashboardStats();
 
   return (
-    <main className="min-h-screen bg-zinc-50 p-8 text-zinc-900">
-      <div className="mx-auto max-w-5xl space-y-8">
-        <header className="space-y-3">
-          <h1 className="text-3xl font-bold">youtube.9180.net</h1>
-          <p className="text-zinc-600">
-            多人协作的 YouTube 对标情报 + 结构化内容规划系统（Next.js + PostgreSQL + Prisma）
-          </p>
-          <div className="flex flex-wrap items-center gap-3">
+    <main className="min-h-screen bg-zinc-50 p-6 text-zinc-900 md:p-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <header className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold">SaaS Analytics Dashboard · team-content-os</h1>
+              <p className="mt-1 text-sm text-zinc-600">YouTube 对标情报、文案生成、执行追踪的一体化数据台</p>
+            </div>
             <div
-              className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${
-                stats.dbConnected
-                  ? "bg-emerald-100 text-emerald-700"
-                  : "bg-amber-100 text-amber-700"
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                stats.dbConnected ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
               }`}
             >
-              {stats.dbConnected ? "数据库已连接" : "数据库未连接（请配置 DATABASE_URL 并迁移）"}
+              {stats.dbConnected ? "数据库在线" : "数据库离线"}
             </div>
-            <Link
-              href="/discover"
-              className="inline-flex rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-zinc-700"
-            >
-              打开增长频道榜单
-            </Link>
-            <Link
-              href="/planner"
-              className="inline-flex rounded-full bg-blue-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-600"
-            >
-              打开内容规划器
-            </Link>
-            <Link
-              href="/similar"
-              className="inline-flex rounded-full bg-indigo-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-600"
-            >
-              打开种子找同类
-            </Link>
-            <Link
-              href="/tracker"
-              className="inline-flex rounded-full bg-emerald-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-600"
-            >
-              打开数据追踪
-            </Link>
-            <Link
-              href="/reports"
-              className="inline-flex rounded-full bg-violet-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-violet-600"
-            >
-              打开自动周报
-            </Link>
           </div>
         </header>
 
-        <section className="grid grid-cols-2 gap-4 md:grid-cols-5">
-          {[
-            ["Teams", stats.teams],
-            ["Users", stats.users],
-            ["Projects", stats.projects],
-            ["Channels", stats.channels],
-            ["Episodes", stats.episodes],
-          ].map(([label, value]) => (
-            <div key={String(label)} className="rounded-xl bg-white p-4 shadow-sm">
-              <p className="text-sm text-zinc-500">{label}</p>
-              <p className="mt-1 text-2xl font-semibold">{Number(value)}</p>
-            </div>
-          ))}
+        <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+          <MetricCard label="Teams" value={stats.teams} hint="协作组织" />
+          <MetricCard label="Users" value={stats.users} hint="账号总数" />
+          <MetricCard label="Projects" value={stats.projects} hint="频道项目" />
+          <MetricCard label="Channels" value={stats.channels} hint="对标频道池" />
+          <MetricCard label="Episodes" value={stats.episodes} hint="文案/选题资产" />
+          <MetricCard label="Discover Runs" value={stats.discoverRuns} hint="数据抓取批次" />
         </section>
 
-        <section className="space-y-3">
-          <h2 className="text-xl font-semibold">系统模块</h2>
-          <div className="grid gap-3 md:grid-cols-2">
-            {modules.map((item) => (
-              <article key={item.title} className="rounded-xl border border-zinc-200 bg-white p-4">
-                <h3 className="font-medium">{item.title}</h3>
-                <p className="mt-1 text-sm text-zinc-600">{item.desc}</p>
-              </article>
-            ))}
+        <section className="grid gap-4 lg:grid-cols-3">
+          <Link href="/discover" className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:border-zinc-300">
+            <p className="text-sm font-semibold">增长频道发现</p>
+            <p className="mt-1 text-sm text-zinc-600">跑赛道关键词、看候选频道分数、加入参考视频池。</p>
+            <p className="mt-4 text-xs text-blue-700">进入模块 →</p>
+          </Link>
+          <Link href="/planner" className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:border-zinc-300">
+            <p className="text-sm font-semibold">文案生成器</p>
+            <p className="mt-1 text-sm text-zinc-600">基于选中的参考视频，生成1篇详细可拍摄脚本。</p>
+            <p className="mt-4 text-xs text-blue-700">进入模块 →</p>
+          </Link>
+          <Link href="/tracker" className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:border-zinc-300">
+            <p className="text-sm font-semibold">追踪与复盘</p>
+            <p className="mt-1 text-sm text-zinc-600">回填CTR/留存/播放，输出下周动作建议。</p>
+            <p className="mt-4 text-xs text-blue-700">进入模块 →</p>
+          </Link>
+        </section>
+
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h2 className="text-sm font-semibold">导航快捷入口</h2>
+          <div className="mt-3 flex flex-wrap gap-2 text-sm">
+            <Link href="/discover" className="rounded-lg border border-zinc-300 px-3 py-1.5 hover:bg-zinc-50">发现页</Link>
+            <Link href="/similar" className="rounded-lg border border-zinc-300 px-3 py-1.5 hover:bg-zinc-50">种子找同类</Link>
+            <Link href="/planner" className="rounded-lg border border-zinc-300 px-3 py-1.5 hover:bg-zinc-50">文案生成</Link>
+            <Link href="/tracker" className="rounded-lg border border-zinc-300 px-3 py-1.5 hover:bg-zinc-50">数据追踪</Link>
+            <Link href="/reports" className="rounded-lg border border-zinc-300 px-3 py-1.5 hover:bg-zinc-50">自动周报</Link>
           </div>
-        </section>
-
-        <section className="rounded-xl border border-zinc-200 bg-white p-5">
-          <h2 className="text-xl font-semibold">下一步</h2>
-          <ol className="mt-3 list-decimal space-y-2 pl-5 text-zinc-700">
-            <li>复制 .env 为 .env.local 并填入 PostgreSQL 连接串</li>
-            <li>运行 prisma migrate dev 初始化数据表</li>
-            <li>创建 Team / User / Project 作为团队试跑数据</li>
-            <li>接入频道采集任务（API/脚本）</li>
-          </ol>
         </section>
       </div>
     </main>
