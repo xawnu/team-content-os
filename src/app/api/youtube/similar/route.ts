@@ -17,20 +17,28 @@ export async function GET(request: NextRequest) {
     }
 
     const persist = searchParams.get("persist") !== "0";
-    const useCache = searchParams.get("cache") !== "0";
+    const forceRefresh = searchParams.get("refresh") === "1";
+    const useCache = searchParams.get("cache") !== "0" && !forceRefresh;
 
     if (useCache) {
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const cached = await prisma.similarRun.findFirst({
-        where: {
-          seedInput: channelId,
-          createdAt: { gte: since },
-        },
-        include: { items: true },
-        orderBy: { createdAt: "desc" },
-      });
+      const [cached, latestDiscoverRun] = await Promise.all([
+        prisma.similarRun.findFirst({
+          where: {
+            seedInput: channelId,
+            createdAt: { gte: since },
+          },
+          include: { items: true },
+          orderBy: { createdAt: "desc" },
+        }),
+        prisma.discoverRun.findFirst({ orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
+      ]);
 
-      if (cached) {
+      const hasNewDiscoverData = Boolean(
+        cached && latestDiscoverRun?.createdAt && latestDiscoverRun.createdAt > cached.createdAt,
+      );
+
+      if (cached && !hasNewDiscoverData) {
         return NextResponse.json({
           ok: true,
           cached: true,

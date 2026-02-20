@@ -38,6 +38,7 @@ export default function SimilarPage() {
   const [selectedSimilarRunId, setSelectedSimilarRunId] = useState<string | null>(null);
   const [selectedSimilarRun, setSelectedSimilarRun] = useState<SimilarRunDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [forceRefresh, setForceRefresh] = useState(false);
 
   async function loadSimilarHistory(page = similarHistoryPage) {
     setSimilarHistoryLoading(true);
@@ -74,7 +75,7 @@ export default function SimilarPage() {
     setSimilarLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/youtube/similar?seed=${encodeURIComponent(seedChannelId.trim())}&persist=1`);
+      const res = await fetch(`/api/youtube/similar?seed=${encodeURIComponent(seedChannelId.trim())}&persist=1${forceRefresh ? "&refresh=1" : ""}`);
       const json = await res.json();
       if (!res.ok || !json?.ok) throw new Error(json?.error || "相似频道请求失败");
       setSimilarItems(json.items ?? []);
@@ -113,7 +114,11 @@ export default function SimilarPage() {
                 placeholder="@homesteadrootss 或 https://www.youtube.com/@homesteadrootss"
               />
             </label>
-            <div className="flex items-end">
+            <div className="flex items-end gap-2">
+              <label className="flex items-center gap-1 text-xs text-zinc-600">
+                <input type="checkbox" checked={forceRefresh} onChange={(e) => setForceRefresh(e.target.checked)} />
+                强制刷新
+              </label>
               <button
                 onClick={runSimilar}
                 disabled={similarLoading}
