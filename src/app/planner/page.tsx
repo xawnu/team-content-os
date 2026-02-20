@@ -34,7 +34,6 @@ export default function PlannerPage() {
   const [direction, setDirection] = useState("同类型视频详细文案");
   const [topicLock, setTopicLock] = useState("");
   const [bannedWords, setBannedWords] = useState("");
-  const [sceneMode, setSceneMode] = useState("室内夜晚");
   const [contentMode, setContentMode] = useState("实操教程");
   const [referenceVideosText, setReferenceVideosText] = useState("");
   const [script, setScript] = useState<DetailedScript | null>(null);
@@ -70,7 +69,6 @@ export default function PlannerPage() {
           direction,
           topicLock,
           bannedWords,
-          sceneMode,
           contentMode,
           referenceVideos,
           variationNonce: Date.now(),
@@ -173,15 +171,6 @@ export default function PlannerPage() {
                 className="w-full rounded border border-zinc-300 px-2 py-1 text-sm"
                 placeholder="例如：植物,甲醛"
               />
-            </label>
-            <label className="space-y-1 md:col-span-1">
-              <span className="text-xs text-zinc-500">场景模式</span>
-              <select value={sceneMode} onChange={(e) => setSceneMode(e.target.value)} className="w-full rounded border border-zinc-300 px-2 py-1 text-sm">
-                <option value="室内夜晚">室内夜晚</option>
-                <option value="雨夜窗边">雨夜窗边</option>
-                <option value="森林露营">森林露营</option>
-                <option value="书房学习">书房学习</option>
-              </select>
             </label>
             <label className="space-y-1 md:col-span-1">
               <span className="text-xs text-zinc-500">内容风格</span>
