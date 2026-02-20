@@ -329,11 +329,20 @@ export default function PlannerPage() {
                 ? outline.timeline as Array<{ time?: string; segment?: string; voiceover?: string; visuals?: string }>
                 : [];
               const refs = Array.isArray(outline.referenceVideos) ? outline.referenceVideos as string[] : [];
+              const items = Array.isArray(outline.contentItems) ? outline.contentItems as string[] : [];
 
               return (
                 <div className="space-y-3 text-sm">
                   <p><span className="text-zinc-500">标题：</span>{selectedEpisode.titleOptions?.[0] || "-"}</p>
                   {refs.length ? <p><span className="text-zinc-500">参考视频：</span>{refs.join(" | ")}</p> : null}
+                  {items.length ? (
+                    <div>
+                      <p className="mb-1 text-zinc-500">具体内容清单</p>
+                      <ul className="grid gap-1 md:grid-cols-2">{items.map((x, i) => <li key={i}>• {i + 1}. {x}</li>)}</ul>
+                    </div>
+                  ) : (
+                    <p className="text-amber-700">这条历史是旧记录，当时未保存“具体内容清单”。</p>
+                  )}
                   {opening.length ? (
                     <div>
                       <p className="mb-1 text-zinc-500">开场口播</p>
