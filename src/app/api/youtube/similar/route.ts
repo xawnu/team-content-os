@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
 
     const persist = searchParams.get("persist") !== "0";
     const forceRefresh = searchParams.get("refresh") === "1";
-    const useCache = searchParams.get("cache") !== "0" && !forceRefresh;
+    // 默认关闭缓存，优先效果；显式 cache=1 才启用24h缓存
+    const useCache = searchParams.get("cache") === "1" && !forceRefresh;
 
     if (useCache) {
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -73,21 +74,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let localCandidates = localCandidatesRaw;
-    if (forceRefresh) {
-      const prev = await prisma.similarRun.findFirst({
-        where: { seedInput: channelId },
-        include: { items: { select: { channelId: true } } },
-        orderBy: { createdAt: "desc" },
-      });
-
-      const prevItems = prev?.items ?? [];
-      const prevIds = new Set(prevItems.map((x: (typeof prevItems)[number]) => x.channelId));
-      const filtered = localCandidatesRaw.filter((c: (typeof localCandidatesRaw)[number]) => !prevIds.has(c.channelId));
-      if (filtered.length >= 20) localCandidates = filtered;
-    }
-
-    const data = await findSimilarChannels(channelId, localCandidates.slice(0, 80));
+    const data = await findSimilarChannels(channelId, localCandidatesRaw.slice(0, 120));
 
     let runId: string | null = null;
 

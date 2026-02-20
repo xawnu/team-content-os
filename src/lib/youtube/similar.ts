@@ -173,7 +173,28 @@ export async function findSimilarChannels(seedInput: string, candidateChannels: 
   const seedTerms = topTerms(seedTitles);
   const query = seedTerms.slice(0, 4).join(" ") || "homestead";
 
-  const candidates = candidateChannels;
+  let candidates = candidateChannels;
+
+  // 高召回补充：即使有本地库，也补一轮搜索候选（成本更高，效果更好）
+  const search = await ytFetch<{ items: SearchItem[] }>("/search", {
+    part: "snippet",
+    type: "channel",
+    q: query,
+    maxResults: 20,
+    order: "relevance",
+  });
+
+  const fromSearch: CandidateChannel[] = (search.items ?? [])
+    .filter((i): i is SearchItem => Boolean(i?.snippet?.channelId))
+    .map((i) => ({
+      channelId: i.snippet!.channelId!,
+      channelTitle: i.snippet?.channelTitle,
+      channelUrl: i.snippet?.channelId ? `https://www.youtube.com/channel/${i.snippet.channelId}` : undefined,
+    }));
+
+  const merged = new Map<string, CandidateChannel>();
+  for (const c of [...candidates, ...fromSearch]) merged.set(c.channelId, c);
+  candidates = [...merged.values()];
 
   const rows = [] as {
     channelId: string;
