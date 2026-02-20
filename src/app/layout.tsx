@@ -25,7 +25,7 @@ const navItems = [
   { href: "/planner", label: "文案" },
   { href: "/tracker", label: "追踪" },
   { href: "/reports", label: "周报" },
-  { href: "/version", label: "版本解释" },
+  { href: "/version", label: "版本介绍" },
 ];
 
 export default function RootLayout({
