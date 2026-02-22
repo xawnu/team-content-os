@@ -40,6 +40,7 @@ export default function SimilarPage() {
   const [error, setError] = useState<string | null>(null);
   const [forceRefresh, setForceRefresh] = useState(false);
   const [marks, setMarks] = useState<Record<string, { channelTitle?: string }>>({});
+  const [onlyMarked, setOnlyMarked] = useState(false);
 
   async function loadSimilarHistory(page = similarHistoryPage) {
     setSimilarHistoryLoading(true);
@@ -138,6 +139,10 @@ export default function SimilarPage() {
                 <input type="checkbox" checked={forceRefresh} onChange={(e) => setForceRefresh(e.target.checked)} />
                 强制刷新
               </label>
+              <label className="flex items-center gap-1 text-xs text-zinc-600">
+                <input type="checkbox" checked={onlyMarked} onChange={(e) => setOnlyMarked(e.target.checked)} />
+                只看已标记
+              </label>
               <button
                 onClick={runSimilar}
                 disabled={similarLoading}
@@ -166,7 +171,7 @@ export default function SimilarPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {similarItems.map((row) => (
+                  {similarItems.filter((row) => !onlyMarked || Boolean(marks[row.channelId])).map((row) => (
                     <tr key={row.channelId} className="border-t border-zinc-100">
                       <td className="px-3 py-2 font-medium">
                         <div className="flex items-center gap-2">

@@ -83,6 +83,7 @@ export default function DiscoverPage() {
   const [analysisProvider, setAnalysisProvider] = useState<string>("rules");
   const [useAiAnalysis, setUseAiAnalysis] = useState(true);
   const [marks, setMarks] = useState<Record<string, { channelTitle?: string }>>({});
+  const [onlyMarked, setOnlyMarked] = useState(false);
 
   const top = useMemo(() => data?.channels?.[0], [data]);
 
@@ -249,7 +250,11 @@ export default function DiscoverPage() {
               <span className="text-zinc-600">最小时长(秒)</span>
               <input type="number" value={minDurationSec} onChange={(e) => setMinDurationSec(Number(e.target.value) || 240)} className="w-full rounded-lg border border-zinc-300 px-3 py-2" />
             </label>
-            <div className="flex items-end">
+            <div className="flex items-end gap-2">
+              <label className="flex items-center gap-1 text-xs text-zinc-600">
+                <input type="checkbox" checked={onlyMarked} onChange={(e) => setOnlyMarked(e.target.checked)} />
+                只看已标记
+              </label>
               <button onClick={run} disabled={loading} className="w-full rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50">
                 {loading ? "抓取中..." : "运行分析"}
               </button>
@@ -283,7 +288,7 @@ export default function DiscoverPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.channels.map((row) => (
+                    {data.channels.filter((row) => !onlyMarked || Boolean(marks[row.channelId])).map((row) => (
                       <tr key={row.channelId} className="border-t border-zinc-100 align-top">
                         <td className="px-3 py-2 font-medium">
                           <div className="flex items-center gap-2">
