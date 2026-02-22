@@ -388,7 +388,13 @@ export default function DiscoverPage() {
                 <tbody>
                   {selectedRun.candidates.map((row) => (
                     <tr key={`${selectedRun.id}-${row.channelId}`} className="border-t border-zinc-100">
-                      <td className="px-3 py-2 font-medium"><a href={row.channelUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">{row.channelTitle}</a></td>
+                      <td className="px-3 py-2 font-medium">
+                        <div className="flex items-center gap-2">
+                          <a href={row.channelUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">{row.channelTitle}</a>
+                          {marks[row.channelId] ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">重点</span> : null}
+                          <button onClick={() => toggleMark(row)} className="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] text-zinc-700 hover:bg-zinc-50">{marks[row.channelId] ? "取消标记" : "标记"}</button>
+                        </div>
+                      </td>
                       <td className="px-3 py-2 text-right font-semibold">{row.score}</td>
                       <td className="px-3 py-2 text-right">{num(row.videoCount7d)}</td>
                       <td className="px-3 py-2 text-right">{num(row.viewsSum7d)}</td>

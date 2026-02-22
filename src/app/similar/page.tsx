@@ -261,6 +261,12 @@ export default function SimilarPage() {
                         <div className="flex items-center gap-2">
                           <a href={i.channelUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">{i.channelTitle}</a>
                           {marks[i.channelId] ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">重点</span> : null}
+                          <button
+                            onClick={() => toggleMark({ channelId: i.channelId, channelTitle: i.channelTitle, channelUrl: i.channelUrl, similarity: i.similarity, matchedTerms: i.matchedTerms })}
+                            className="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] text-zinc-700 hover:bg-zinc-50"
+                          >
+                            {marks[i.channelId] ? "取消标记" : "标记"}
+                          </button>
                         </div>
                       </td>
                       <td className="px-3 py-2 text-right">{i.similarity}%</td>
