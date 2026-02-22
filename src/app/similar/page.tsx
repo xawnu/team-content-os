@@ -39,6 +39,7 @@ export default function SimilarPage() {
   const [selectedSimilarRun, setSelectedSimilarRun] = useState<SimilarRunDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [forceRefresh, setForceRefresh] = useState(false);
+  const [marks, setMarks] = useState<Record<string, { channelTitle?: string }>>({});
 
   async function loadSimilarHistory(page = similarHistoryPage) {
     setSimilarHistoryLoading(true);
@@ -88,8 +89,26 @@ export default function SimilarPage() {
     }
   }
 
+  async function loadMarks() {
+    const res = await fetch("/api/channel-marks");
+    const json = await res.json();
+    if (res.ok && json?.ok) setMarks(json.marks ?? {});
+  }
+
+  async function toggleMark(row: SimilarRow) {
+    const marked = Boolean(marks[row.channelId]);
+    const res = await fetch("/api/channel-marks", {
+      method: marked ? "DELETE" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channelId: row.channelId, channelTitle: row.channelTitle }),
+    });
+    const json = await res.json();
+    if (res.ok && json?.ok) setMarks(json.marks ?? {});
+  }
+
   useEffect(() => {
     loadSimilarHistory();
+    loadMarks();
   }, []);
 
   return (
@@ -150,9 +169,13 @@ export default function SimilarPage() {
                   {similarItems.map((row) => (
                     <tr key={row.channelId} className="border-t border-zinc-100">
                       <td className="px-3 py-2 font-medium">
-                        <a href={row.channelUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
-                          {row.channelTitle}
-                        </a>
+                        <div className="flex items-center gap-2">
+                          <a href={row.channelUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
+                            {row.channelTitle}
+                          </a>
+                          {marks[row.channelId] ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">重点</span> : null}
+                          <button onClick={() => toggleMark(row)} className="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] text-zinc-700 hover:bg-zinc-50">{marks[row.channelId] ? "取消标记" : "标记"}</button>
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-right">{row.similarity}%</td>
                       <td className="px-3 py-2 text-zinc-600">{row.matchedTerms.join(", ")}</td>
@@ -230,7 +253,10 @@ export default function SimilarPage() {
                   {selectedSimilarRun.items.map((i) => (
                     <tr key={`${selectedSimilarRun.id}-${i.channelId}`} className="border-t border-zinc-100">
                       <td className="px-3 py-2">
-                        <a href={i.channelUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">{i.channelTitle}</a>
+                        <div className="flex items-center gap-2">
+                          <a href={i.channelUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">{i.channelTitle}</a>
+                          {marks[i.channelId] ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">重点</span> : null}
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-right">{i.similarity}%</td>
                       <td className="px-3 py-2 text-zinc-600">{i.matchedTerms.join(", ")}</td>

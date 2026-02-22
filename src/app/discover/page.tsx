@@ -82,6 +82,7 @@ export default function DiscoverPage() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisProvider, setAnalysisProvider] = useState<string>("rules");
   const [useAiAnalysis, setUseAiAnalysis] = useState(true);
+  const [marks, setMarks] = useState<Record<string, { channelTitle?: string }>>({});
 
   const top = useMemo(() => data?.channels?.[0], [data]);
 
@@ -137,6 +138,23 @@ export default function DiscoverPage() {
     }
   }
 
+  async function loadMarks() {
+    const res = await fetch("/api/channel-marks");
+    const json = await res.json();
+    if (res.ok && json?.ok) setMarks(json.marks ?? {});
+  }
+
+  async function toggleMark(row: ChannelRow) {
+    const marked = Boolean(marks[row.channelId]);
+    const res = await fetch("/api/channel-marks", {
+      method: marked ? "DELETE" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channelId: row.channelId, channelTitle: row.channelTitle }),
+    });
+    const json = await res.json();
+    if (res.ok && json?.ok) setMarks(json.marks ?? {});
+  }
+
   useEffect(() => {
     async function loadNiches() {
       const res = await fetch("/api/niches");
@@ -149,6 +167,7 @@ export default function DiscoverPage() {
     loadNiches();
     loadHistory();
     loadAnalysis();
+    loadMarks();
   }, []);
 
   useEffect(() => {
@@ -266,7 +285,13 @@ export default function DiscoverPage() {
                   <tbody>
                     {data.channels.map((row) => (
                       <tr key={row.channelId} className="border-t border-zinc-100 align-top">
-                        <td className="px-3 py-2 font-medium"><a href={row.channelUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">{row.channelTitle}</a></td>
+                        <td className="px-3 py-2 font-medium">
+                          <div className="flex items-center gap-2">
+                            <a href={row.channelUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">{row.channelTitle}</a>
+                            {marks[row.channelId] ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">重点</span> : null}
+                            <button onClick={() => toggleMark(row)} className="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] text-zinc-700 hover:bg-zinc-50">{marks[row.channelId] ? "取消标记" : "标记"}</button>
+                          </div>
+                        </td>
                         <td className="px-3 py-2 text-right font-semibold">{row.score}</td>
                         <td className="px-3 py-2 text-right">{num(row.videoCount7d)}</td>
                         <td className="px-3 py-2 text-right">{num(row.viewsSum7d)}</td>
