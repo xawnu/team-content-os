@@ -16,7 +16,7 @@ export type DetailedScriptResult = {
   provider: "ai" | "template";
 };
 
-function buildFallbackTimeline(items: string[], sceneMode: string, contentMode: string) {
+function buildFallbackTimeline(items: string[], narrativeStructure: string, paceLevel: string) {
   const base = items.length ? items : ["核心要点1", "核心要点2", "核心要点3", "核心要点4", "核心要点5", "核心要点6", "核心要点7", "核心要点8"];
   const chunkSize = Math.max(1, Math.ceil(base.length / 8));
   const parts: string[][] = [];
@@ -29,8 +29,8 @@ function buildFallbackTimeline(items: string[], sceneMode: string, contentMode: 
     return {
       time: `${String(idx).padStart(2, "0")}:00-${String(idx).padStart(2, "0")}:45`,
       segment: `第${idx + 1}段 [要点${start}${end > start ? `-${end}` : ""}]`,
-      voiceover: `本段采用${contentMode}表达，围绕${group.join("、")}展开具体讲解。先说明场景目标，再给出可执行动作与注意事项，避免空话，确保观众听完即可照做并获得明确结果。`,
-      visuals: `画面采用${sceneMode}场景，使用近景+中景+特写交替机位，包含推镜与转场。先展示关键对象，再切换操作细节，最后给出结果对比镜头与字幕标注。`,
+      voiceover: `本段按${narrativeStructure}结构展开，围绕${group.join("、")}做具体讲解。节奏设定为${paceLevel}，先给结论再给动作步骤，补上边界条件与执行提醒，保证观众听完就能照做。`,
+      visuals: `画面使用近景+中景+特写交替机位，并加入推镜与转场。先展示关键对象，再切换操作细节，最后用结果对比镜头和字幕强化记忆。`,
     };
   });
 }
@@ -50,8 +50,10 @@ export async function generateDetailedScriptFromSeeds(input: {
   topicLock?: string;
   bannedWords?: string[];
   referenceVideos?: string[];
-  sceneMode?: string;
-  contentMode?: string;
+  contentGoal?: string;
+  narrativeStructure?: string;
+  toneStyle?: string[];
+  paceLevel?: string;
   variationNonce?: string;
 }) {
   const seeds = input.seedText
@@ -71,6 +73,10 @@ export async function generateDetailedScriptFromSeeds(input: {
   const bannedWords = (input.bannedWords || []).map((w) => w.trim()).filter(Boolean);
   const referenceVideos = (input.referenceVideos || []).map((x) => x.trim()).filter(Boolean).slice(0, 10);
   if (!referenceVideos.length) throw new Error("请先选择1-3条参考视频再生成");
+  const contentGoal = input.contentGoal || "拉新破圈";
+  const narrativeStructure = input.narrativeStructure || "问题→方案→结果";
+  const toneStyle = (input.toneStyle || ["专业理性"]).filter(Boolean);
+  const paceLevel = input.paceLevel || "中";
 
   try {
     const ai = await openRouterJson<Omit<DetailedScriptResult, "provider">>([
@@ -87,8 +93,10 @@ export async function generateDetailedScriptFromSeeds(input: {
           topicLock,
           bannedWords,
           requiredCount,
-          sceneMode: input.sceneMode || "室内夜晚",
-          contentMode: input.contentMode || "实操教程",
+          contentGoal,
+          narrativeStructure,
+          toneStyle,
+          paceLevel,
           variationNonce: input.variationNonce || "v0",
           requirement: {
             count: 1,
@@ -116,7 +124,7 @@ export async function generateDetailedScriptFromSeeds(input: {
               "若requiredCount=20，timeline必须覆盖要点1到要点20，不能遗漏",
               "timeline至少8段；每段voiceover>=60字，visuals>=40字，禁止泛化描述",
               "每段必须给出具体镜头动作（机位/景别/转场之一）",
-              "严格遵循sceneMode场景与contentMode内容风格",
+              "严格遵循contentGoal/narrativeStructure/toneStyle/paceLevel",
               "variationNonce代表本次版本号，本次输出必须与常见模板明显不同",
             ],
           },
@@ -128,7 +136,7 @@ export async function generateDetailedScriptFromSeeds(input: {
     const contentItems = Array.isArray(ai.contentItems) ? ai.contentItems.map(String) : [];
     const timeline = Array.isArray(ai.timeline) && ai.timeline.length
       ? ai.timeline
-      : buildFallbackTimeline(contentItems, input.sceneMode || "室内夜晚", input.contentMode || "实操教程");
+      : buildFallbackTimeline(contentItems, narrativeStructure, paceLevel);
 
     if (requiredCount && contentItems.length !== requiredCount) {
       throw new Error(`数字承诺不一致: 要求${requiredCount}，返回${contentItems.length}`);

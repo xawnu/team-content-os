@@ -41,8 +41,12 @@ export async function POST(request: NextRequest) {
     const referenceVideos = Array.isArray(body.referenceVideos)
       ? body.referenceVideos.map((x: unknown) => String(x).trim()).filter(Boolean)
       : String(body.referenceVideos || "").split(/\n/).map((x) => x.trim()).filter(Boolean);
-    const sceneMode = String(body.sceneMode || "室内夜晚");
-    const contentMode = String(body.contentMode || "实操教程");
+    const contentGoal = String(body.contentGoal || "拉新破圈");
+    const narrativeStructure = String(body.narrativeStructure || "问题→方案→结果");
+    const toneStyle = Array.isArray(body.toneStyle)
+      ? body.toneStyle.map((x: unknown) => String(x)).filter(Boolean)
+      : String(body.toneStyle || "专业理性").split(/,|\n/).map((s) => s.trim()).filter(Boolean);
+    const paceLevel = String(body.paceLevel || "中");
     const variationNonce = String(body.variationNonce || Date.now());
 
     const raw = await generateDetailedScriptFromSeeds({
@@ -52,8 +56,10 @@ export async function POST(request: NextRequest) {
       topicLock,
       bannedWords,
       referenceVideos,
-      sceneMode,
-      contentMode,
+      contentGoal,
+      narrativeStructure,
+      toneStyle,
+      paceLevel,
       variationNonce,
     });
     const normalized = (raw as Record<string, unknown>)?.["0"] && typeof (raw as Record<string, unknown>)["0"] === "object"
@@ -92,8 +98,10 @@ export async function POST(request: NextRequest) {
           provider: script.provider,
           seedText,
           referenceVideos,
-          sceneMode,
-          contentMode,
+          contentGoal,
+          narrativeStructure,
+          toneStyle,
+          paceLevel,
           variationNonce,
         }),
         voiceoverOutline: script.opening15s.join("\n"),

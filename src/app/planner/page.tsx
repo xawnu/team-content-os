@@ -34,7 +34,10 @@ export default function PlannerPage() {
   const [direction, setDirection] = useState("同类型视频详细文案");
   const [topicLock, setTopicLock] = useState("");
   const [bannedWords, setBannedWords] = useState("");
-  const [contentMode, setContentMode] = useState("实操教程");
+  const [contentGoal, setContentGoal] = useState("拉新破圈");
+  const [narrativeStructure, setNarrativeStructure] = useState("问题→方案→结果");
+  const [toneStyle, setToneStyle] = useState<string[]>(["专业理性"]);
+  const [paceLevel, setPaceLevel] = useState("中");
   const [referenceVideosText, setReferenceVideosText] = useState("");
   const [poolTopic, setPoolTopic] = useState("default");
   const [script, setScript] = useState<DetailedScript | null>(null);
@@ -45,6 +48,10 @@ export default function PlannerPage() {
     const res = await fetch("/api/planner/episodes");
     const json = await res.json();
     if (res.ok && json.ok) setEpisodes(json.episodes ?? []);
+  }
+
+  function toggleTone(tone: string) {
+    setToneStyle((prev) => (prev.includes(tone) ? prev.filter((t) => t !== tone) : [...prev, tone]));
   }
 
   async function generateOneScript() {
@@ -70,7 +77,10 @@ export default function PlannerPage() {
           direction,
           topicLock,
           bannedWords,
-          contentMode,
+          contentGoal,
+          narrativeStructure,
+          toneStyle,
+          paceLevel,
           referenceVideos,
           variationNonce: Date.now(),
           language: "zh",
@@ -192,12 +202,30 @@ export default function PlannerPage() {
               />
             </label>
             <label className="space-y-1 md:col-span-1">
-              <span className="text-xs text-zinc-500">内容风格</span>
-              <select value={contentMode} onChange={(e) => setContentMode(e.target.value)} className="w-full rounded border border-zinc-300 px-2 py-1 text-sm">
-                <option value="实操教程">实操教程</option>
-                <option value="故事体验">故事体验</option>
-                <option value="避坑清单">避坑清单</option>
-                <option value="沉浸氛围">沉浸氛围</option>
+              <span className="text-xs text-zinc-500">内容目的</span>
+              <select value={contentGoal} onChange={(e) => setContentGoal(e.target.value)} className="w-full rounded border border-zinc-300 px-2 py-1 text-sm">
+                <option value="拉新破圈">拉新破圈</option>
+                <option value="提升完播">提升完播</option>
+                <option value="提升互动">提升互动</option>
+                <option value="承接转化">承接转化</option>
+              </select>
+            </label>
+            <label className="space-y-1 md:col-span-1">
+              <span className="text-xs text-zinc-500">叙事结构</span>
+              <select value={narrativeStructure} onChange={(e) => setNarrativeStructure(e.target.value)} className="w-full rounded border border-zinc-300 px-2 py-1 text-sm">
+                <option value="问题→方案→结果">问题→方案→结果</option>
+                <option value="清单计数">清单计数</option>
+                <option value="对比实验">对比实验</option>
+                <option value="误区纠错">误区纠错</option>
+                <option value="挑战复盘">挑战复盘</option>
+              </select>
+            </label>
+            <label className="space-y-1 md:col-span-1">
+              <span className="text-xs text-zinc-500">节奏强度</span>
+              <select value={paceLevel} onChange={(e) => setPaceLevel(e.target.value)} className="w-full rounded border border-zinc-300 px-2 py-1 text-sm">
+                <option value="慢">慢</option>
+                <option value="中">中</option>
+                <option value="快">快</option>
               </select>
             </label>
             <label className="space-y-1 md:col-span-6">
@@ -209,6 +237,20 @@ export default function PlannerPage() {
                 placeholder="示例：Rain Sounds for Sleep - https://youtube.com/..."
               />
             </label>
+            <div className="md:col-span-6 flex flex-wrap items-center gap-2 text-xs">
+              <span className="text-zinc-500">表达语气：</span>
+              {[
+                "专业理性",
+                "朋友口语",
+                "情绪张力",
+                "冷静克制",
+              ].map((tone) => (
+                <label key={tone} className="flex items-center gap-1">
+                  <input type="checkbox" checked={toneStyle.includes(tone)} onChange={() => toggleTone(tone)} />
+                  {tone}
+                </label>
+              ))}
+            </div>
             <div className="md:col-span-6 flex flex-wrap items-center gap-2 text-xs">
               <input
                 value={poolTopic}
