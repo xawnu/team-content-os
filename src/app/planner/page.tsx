@@ -36,6 +36,7 @@ export default function PlannerPage() {
   const [bannedWords, setBannedWords] = useState("");
   const [contentMode, setContentMode] = useState("实操教程");
   const [referenceVideosText, setReferenceVideosText] = useState("");
+  const [poolTopic, setPoolTopic] = useState("default");
   const [script, setScript] = useState<DetailedScript | null>(null);
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
   const [error, setError] = useState<string>("");
@@ -107,6 +108,27 @@ export default function PlannerPage() {
     const res = await fetch(`/api/planner/episodes?episodeId=${encodeURIComponent(episodeId)}`);
     const json = await res.json();
     if (res.ok && json?.ok && json?.episode) setSelectedEpisode(json.episode as Episode);
+  }
+
+  function savePoolByTopic() {
+    const key = poolTopic.trim() || "default";
+    const raw = window.localStorage.getItem("tcos_reference_pools");
+    const map = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+    map[key] = referenceVideosText;
+    window.localStorage.setItem("tcos_reference_pools", JSON.stringify(map));
+    alert(`已保存主题参考池：${key}`);
+  }
+
+  function loadPoolByTopic() {
+    const key = poolTopic.trim() || "default";
+    const raw = window.localStorage.getItem("tcos_reference_pools");
+    const map = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+    setReferenceVideosText(map[key] || "");
+  }
+
+  function clearPool() {
+    setReferenceVideosText("");
+    window.localStorage.removeItem("tcos_reference_videos");
   }
 
   useEffect(() => {
@@ -187,6 +209,17 @@ export default function PlannerPage() {
                 placeholder="示例：Rain Sounds for Sleep - https://youtube.com/..."
               />
             </label>
+            <div className="md:col-span-6 flex flex-wrap items-center gap-2 text-xs">
+              <input
+                value={poolTopic}
+                onChange={(e) => setPoolTopic(e.target.value)}
+                className="rounded border border-zinc-300 px-2 py-1 text-sm"
+                placeholder="主题名：如 homestead"
+              />
+              <button onClick={savePoolByTopic} className="rounded border border-zinc-300 px-2 py-1 hover:bg-zinc-50">保存该主题参考池</button>
+              <button onClick={loadPoolByTopic} className="rounded border border-zinc-300 px-2 py-1 hover:bg-zinc-50">加载该主题参考池</button>
+              <button onClick={clearPool} className="rounded border border-rose-300 px-2 py-1 text-rose-700 hover:bg-rose-50">清空参考池</button>
+            </div>
             <div className="flex items-end md:col-span-6">
               <button
                 onClick={generateOneScript}
