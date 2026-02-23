@@ -11,6 +11,8 @@ type SimilarRow = {
   matchedTerms: string[];
 };
 
+type MarkState = { channelTitle?: string; marked?: boolean; priority?: boolean };
+
 type SimilarRunRow = {
   id: string;
   seedInput: string;
@@ -39,7 +41,7 @@ export default function SimilarPage() {
   const [selectedSimilarRun, setSelectedSimilarRun] = useState<SimilarRunDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [forceRefresh, setForceRefresh] = useState(false);
-  const [marks, setMarks] = useState<Record<string, { channelTitle?: string }>>({});
+  const [marks, setMarks] = useState<Record<string, MarkState>>({});
   const [onlyMarked, setOnlyMarked] = useState(false);
 
   async function loadSimilarHistory(page = similarHistoryPage) {
@@ -117,11 +119,30 @@ export default function SimilarPage() {
   }
 
   async function toggleMark(row: SimilarRow) {
-    const marked = Boolean(marks[row.channelId]);
+    const current = marks[row.channelId];
+    const nextMarked = !(current?.marked ?? Boolean(current));
+    const nextPriority = current?.priority ?? false;
+
+    if (!nextMarked && !nextPriority) {
+      const res = await fetch("/api/channel-marks", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId: row.channelId }),
+      });
+      const json = await res.json();
+      if (res.ok && json?.ok) setMarks(json.marks ?? {});
+      return;
+    }
+
     const res = await fetch("/api/channel-marks", {
-      method: marked ? "DELETE" : "POST",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ channelId: row.channelId, channelTitle: row.channelTitle }),
+      body: JSON.stringify({
+        channelId: row.channelId,
+        channelTitle: row.channelTitle,
+        marked: nextMarked,
+        priority: nextPriority,
+      }),
     });
     const json = await res.json();
     if (res.ok && json?.ok) setMarks(json.marks ?? {});
@@ -191,21 +212,22 @@ export default function SimilarPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {similarItems.filter((row) => !onlyMarked || Boolean(marks[row.channelId])).map((row) => (
+                  {similarItems.filter((row) => !onlyMarked || Boolean(marks[row.channelId]?.marked ?? marks[row.channelId])).map((row) => (
                     <tr key={row.channelId} className="border-t border-zinc-100">
                       <td className="px-3 py-2 font-medium">
                         <div className="flex items-center gap-2">
                           <a href={row.channelUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
                             {row.channelTitle}
                           </a>
-                          {marks[row.channelId] ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">重点</span> : null}
-                          <button onClick={() => toggleMark(row)} className="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] text-zinc-700 hover:bg-zinc-50">{marks[row.channelId] ? "取消标记" : "标记"}</button>
+                          {marks[row.channelId]?.marked ? <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] text-sky-700">标记</span> : null}
+                          {marks[row.channelId]?.priority ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">重点</span> : null}
+                          <button onClick={() => toggleMark(row)} className="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] text-zinc-700 hover:bg-zinc-50">{marks[row.channelId]?.marked ? "取消标记" : "标记"}</button>
                         </div>
                       </td>
                       <td className="px-3 py-2 text-right">{row.similarity}%</td>
                       <td className="px-3 py-2">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-zinc-600 text-xs">{row.matchedTerms.join(", ")}</span>
+                          <span className="text-zinc-600 text-xs">{Array.isArray(row.matchedTerms) ? row.matchedTerms.join(", ") : String((row as any).matchedTerms || "")}</span>
                           <button
                             onClick={() => addToReferencePool(row)}
                             className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200 transition-colors whitespace-nowrap"
@@ -252,7 +274,7 @@ export default function SimilarPage() {
                       <td className="px-3 py-2">{new Date(r.createdAt).toLocaleString()}</td>
                       <td className="px-3 py-2">{r.seedInput}</td>
                       <td className="px-3 py-2">{r.query}</td>
-                      <td className="px-3 py-2 text-right">{r._count.items}</td>
+                      <td className="px-3 py-2 text-right">{r._count?.items ?? 0}</td>
                       <td className="px-3 py-2 text-xs text-zinc-500">{r.id}</td>
                     </tr>
                   ))}
@@ -290,17 +312,18 @@ export default function SimilarPage() {
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
                           <a href={i.channelUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">{i.channelTitle}</a>
-                          {marks[i.channelId] ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">重点</span> : null}
+                          {marks[i.channelId]?.marked ? <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] text-sky-700">标记</span> : null}
+                          {marks[i.channelId]?.priority ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">重点</span> : null}
                           <button
                             onClick={() => toggleMark({ channelId: i.channelId, channelTitle: i.channelTitle, channelUrl: i.channelUrl, similarity: i.similarity, matchedTerms: i.matchedTerms })}
                             className="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] text-zinc-700 hover:bg-zinc-50"
                           >
-                            {marks[i.channelId] ? "取消标记" : "标记"}
+                            {marks[i.channelId]?.marked ? "取消标记" : "标记"}
                           </button>
                         </div>
                       </td>
                       <td className="px-3 py-2 text-right">{i.similarity}%</td>
-                      <td className="px-3 py-2 text-zinc-600">{i.matchedTerms.join(", ")}</td>
+                      <td className="px-3 py-2 text-zinc-600">{Array.isArray(i.matchedTerms) ? i.matchedTerms.join(", ") : String((i as any).matchedTerms || "")}</td>
                     </tr>
                   ))}
                 </tbody>
