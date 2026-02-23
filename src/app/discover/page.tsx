@@ -127,6 +127,27 @@ export default function DiscoverPage() {
     loadAnalysis(runId);
   }
 
+  async function deleteRun(runId: string) {
+    const ok = window.confirm("确认删除这条历史抓取记录吗？删除后不可恢复。");
+    if (!ok) return;
+
+    const res = await fetch("/api/youtube/discover/history", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ runId }),
+    });
+    const json = await res.json();
+    if (res.ok && json?.ok) {
+      if (selectedRunId === runId) {
+        setSelectedRunId(null);
+        setSelectedRun(null);
+      }
+      await loadHistory(historyPage);
+    } else {
+      alert(json?.error || "删除失败");
+    }
+  }
+
   async function loadAnalysis(runId?: string) {
     setAnalysisLoading(true);
     try {
@@ -287,15 +308,17 @@ export default function DiscoverPage() {
         niche: selectedNiche,
         days: String(days),
         minDurationSec: String(minDurationSec),
-        minSubscribers: String(minSubscribers),
-        maxSubscribers: String(maxSubscribers),
-        maxChannelAgeDays: String(maxChannelAgeDays),
-        minViewSubRatio: String(minViewSubRatio),
         maxResults: "50",
         region: "US",
         lang: "en",
         persist: "1",
       });
+      if (discoverMode === "radar") {
+        params.set("minSubscribers", String(minSubscribers));
+        params.set("maxSubscribers", String(maxSubscribers));
+        params.set("maxChannelAgeDays", String(maxChannelAgeDays));
+        params.set("minViewSubRatio", String(minViewSubRatio));
+      }
       const res = await fetch(`/api/youtube/discover?${params.toString()}`);
       const json = (await res.json()) as DiscoverResponse;
       if (!res.ok || !json.ok) throw new Error(json.error || "请求失败");
@@ -475,11 +498,11 @@ export default function DiscoverPage() {
           ) : runs.length ? (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
-                <thead className="bg-zinc-100 text-zinc-600"><tr><th className="px-3 py-2 text-left">时间</th><th className="px-3 py-2 text-left">关键词</th><th className="px-3 py-2 text-right">窗口</th><th className="px-3 py-2 text-right">候选频道</th><th className="px-3 py-2 text-right">过滤视频</th><th className="px-3 py-2 text-left">Run ID</th></tr></thead>
+                <thead className="bg-zinc-100 text-zinc-600"><tr><th className="px-3 py-2 text-left">时间</th><th className="px-3 py-2 text-left">关键词</th><th className="px-3 py-2 text-right">窗口</th><th className="px-3 py-2 text-right">候选频道</th><th className="px-3 py-2 text-right">过滤视频</th><th className="px-3 py-2 text-left">Run ID</th><th className="px-3 py-2 text-right">操作</th></tr></thead>
                 <tbody>
                   {runs.map((r) => (
                     <tr key={r.id} className={`border-t border-zinc-100 cursor-pointer hover:bg-zinc-50 ${selectedRunId === r.id ? "bg-zinc-50" : ""}`} onClick={() => loadRunDetail(r.id)}>
-                      <td className="px-3 py-2">{new Date(r.createdAt).toLocaleString()}</td><td className="px-3 py-2">{r.query}</td><td className="px-3 py-2 text-right">{r.days}d</td><td className="px-3 py-2 text-right">{r._count.candidates}</td><td className="px-3 py-2 text-right">{r.filteredVideos}</td><td className="px-3 py-2 text-xs text-zinc-500">{r.id}</td>
+                      <td className="px-3 py-2">{new Date(r.createdAt).toLocaleString()}</td><td className="px-3 py-2">{r.query}</td><td className="px-3 py-2 text-right">{r.days}d</td><td className="px-3 py-2 text-right">{r._count.candidates}</td><td className="px-3 py-2 text-right">{r.filteredVideos}</td><td className="px-3 py-2 text-xs text-zinc-500">{r.id}</td><td className="px-3 py-2 text-right"><button onClick={(e) => { e.stopPropagation(); deleteRun(r.id); }} className="rounded border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50">删除</button></td>
                     </tr>
                   ))}
                 </tbody>

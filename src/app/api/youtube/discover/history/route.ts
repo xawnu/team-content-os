@@ -52,3 +52,22 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const runId = String(body.runId || "").trim();
+
+    if (!runId) {
+      return NextResponse.json({ ok: false, error: "runId required" }, { status: 400 });
+    }
+
+    await prisma.discoverRun.delete({ where: { id: runId } });
+    return NextResponse.json({ ok: true, deletedId: runId });
+  } catch (error) {
+    return NextResponse.json(
+      { ok: false, error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 },
+    );
+  }
+}
