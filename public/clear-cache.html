@@ -78,7 +78,17 @@
         </div>
 
         <div class="step">
-            <h3>方法 1：强制刷新（推荐）</h3>
+            <h3>方法 1：使用时间戳参数（最简单）</h3>
+            <p>在 URL 后面添加时间戳参数可以绕过缓存：</p>
+            <div style="background: #f4f4f4; padding: 10px; border-radius: 4px; margin: 10px 0;">
+                <code id="timestampUrl">https://youtube.9180.net/planner?t=<span id="timestamp"></span></code>
+            </div>
+            <button onclick="openWithTimestamp()">使用时间戳打开 Planner</button>
+            <button onclick="copyTimestampUrl()">复制链接</button>
+        </div>
+
+        <div class="step">
+            <h3>方法 2：强制刷新</h3>
             <p>按以下快捷键强制刷新页面：</p>
             <ul>
                 <li><strong>Windows/Linux：</strong> <code>Ctrl + Shift + R</code> 或 <code>Ctrl + F5</code></li>
@@ -88,7 +98,7 @@
         </div>
 
         <div class="step">
-            <h3>方法 2：清除浏览器缓存</h3>
+            <h3>方法 3：清除浏览器缓存</h3>
             <p><strong>Chrome/Edge：</strong></p>
             <ol>
                 <li>按 <code>F12</code> 打开开发者工具</li>
@@ -99,7 +109,7 @@
         </div>
 
         <div class="step">
-            <h3>方法 3：无痕模式测试</h3>
+            <h3>方法 4：无痕模式测试</h3>
             <p>在无痕/隐私模式下打开页面：</p>
             <ul>
                 <li><strong>Chrome/Edge：</strong> <code>Ctrl + Shift + N</code></li>
@@ -142,6 +152,21 @@
     </div>
 
     <script>
+        // 生成时间戳
+        const timestamp = Date.now();
+        document.getElementById('timestamp').textContent = timestamp;
+        
+        function openWithTimestamp() {
+            window.location.href = '/planner?t=' + Date.now();
+        }
+        
+        function copyTimestampUrl() {
+            const url = 'https://youtube.9180.net/planner?t=' + Date.now();
+            navigator.clipboard.writeText(url).then(() => {
+                alert('链接已复制到剪贴板！\n' + url);
+            });
+        }
+        
         function clearCacheAndReload() {
             // 清除 localStorage
             localStorage.clear();
