@@ -73,8 +73,8 @@ export default function DiscoverPage() {
   const [data, setData] = useState<DiscoverResponse | null>(null);
   const [minSubscribers, setMinSubscribers] = useState(1000);
   const [maxSubscribers, setMaxSubscribers] = useState(2000);
-  const [maxChannelAgeDays, setMaxChannelAgeDays] = useState(45);
-  const [minViewSubRatio, setMinViewSubRatio] = useState(1.2);
+  const [maxChannelAgeDays, setMaxChannelAgeDays] = useState(0);
+  const [minViewSubRatio, setMinViewSubRatio] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [niches, setNiches] = useState<NichePreset[]>([]);
   const [selectedNiche, setSelectedNiche] = useState("homestead");
@@ -263,13 +263,13 @@ export default function DiscoverPage() {
     if (discoverMode === "radar") {
       setMinSubscribers(500);
       setMaxSubscribers(20000);
-      setMaxChannelAgeDays(180);
-      setMinViewSubRatio(1.2);
+      setMaxChannelAgeDays(0);
+      setMinViewSubRatio(0);
     } else {
       setMinSubscribers(1000);
       setMaxSubscribers(2000);
-      setMaxChannelAgeDays(45);
-      setMinViewSubRatio(1.2);
+      setMaxChannelAgeDays(0);
+      setMinViewSubRatio(0);
     }
   }, [discoverMode]);
 
@@ -397,7 +397,17 @@ export default function DiscoverPage() {
               <input type="number" value={maxChannelAgeDays} onChange={(e) => setMaxChannelAgeDays(Number(e.target.value) || 0)} className="w-full rounded-lg border border-zinc-300 px-3 py-2" />
             </label>
             <label className="space-y-1 text-sm">
-              <span className="text-zinc-600">最小播粉比</span>
+              <span className="text-zinc-600 inline-flex items-center gap-1">
+                最小播粉比
+                <span
+                  className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-zinc-300 text-[10px] text-zinc-500 cursor-help"
+                  title="播粉比 = 中位播放量 ÷ 订阅数
+例子：中位播放 8,000，订阅 2,000，播粉比 = 4.0。
+值越高，通常代表内容“超粉丝圈”传播能力更强。"
+                >
+                  ?
+                </span>
+              </span>
               <input type="number" step="0.1" value={minViewSubRatio} onChange={(e) => setMinViewSubRatio(Number(e.target.value) || 0)} className="w-full rounded-lg border border-zinc-300 px-3 py-2" />
             </label>
             <div className="flex items-end gap-2 md:col-span-9">
