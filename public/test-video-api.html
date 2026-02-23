@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频信息 API 测试</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0052a3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border-left: 4px solid #0066cc;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+            color: #dc3545;
+        }
+        .video-card {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .video-card img {
+            width: 200px;
+            height: 112px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .video-info {
+            flex: 1;
+        }
+        .video-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .video-meta {
+            color: #666;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 YouTube 视频信息 API 测试</h1>
+        <p>测试 <code>/api/youtube/video-info</code> 接口</p>
+        
+        <input 
+            type="text" 
+            id="urlInput" 
+            placeholder="粘贴 YouTube 视频链接（支持 youtu.be / watch?v= / embed）"
+            value="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        >
+        
+        <button onclick="testAPI()">获取视频信息</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function testAPI() {
+            const url = document.getElementById('urlInput').value.trim();
+            const resultDiv = document.getElementById('result');
+            
+            if (!url) {
+                resultDiv.innerHTML = '<div class="result error">请输入视频链接</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="result">加载中...</div>';
+            
+            try {
+                const response = await fetch(`/api/youtube/video-info?url=${encodeURIComponent(url)}`);
+                const data = await response.json();
+                
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || '请求失败');
+                }
+                
+                const video = data.video;
+                resultDiv.innerHTML = `
+                    <div class="result">
+                        <strong>✅ 成功获取视频信息</strong>
+                        <div class="video-card">
+                            <img src="${video.thumbnail}" alt="${video.title}">
+                            <div class="video-info">
+                                <div class="video-title">${video.title}</div>
+                                <div class="video-meta">
+                                    <div>📺 频道：${video.channelTitle}</div>
+                                    <div>⏱️ 时长：${video.duration}</div>
+                                    <div>🆔 ID：${video.id}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ ${error.message}</div>`;
+            }
+        }
+        
+        // 支持回车键
+        document.getElementById('urlInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') testAPI();
+        });
+    </script>
+</body>
+</html>
