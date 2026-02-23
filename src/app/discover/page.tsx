@@ -13,6 +13,9 @@ type ChannelRow = {
   viewsMedian7d: number;
   score: number;
   sampleTitles: string[];
+  subscriberCount?: number;
+  channelAgeDays?: number;
+  viewSubRatio?: number;
 };
 
 type DiscoverResponse = {
@@ -68,6 +71,10 @@ export default function DiscoverPage() {
   const [minDurationSec, setMinDurationSec] = useState(240);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<DiscoverResponse | null>(null);
+  const [minSubscribers, setMinSubscribers] = useState(1000);
+  const [maxSubscribers, setMaxSubscribers] = useState(2000);
+  const [maxChannelAgeDays, setMaxChannelAgeDays] = useState(45);
+  const [minViewSubRatio, setMinViewSubRatio] = useState(1.2);
   const [error, setError] = useState<string | null>(null);
   const [niches, setNiches] = useState<NichePreset[]>([]);
   const [selectedNiche, setSelectedNiche] = useState("homestead");
@@ -231,6 +238,20 @@ export default function DiscoverPage() {
     setMinDurationSec(niche.minDurationSec);
   }, [selectedNiche, niches]);
 
+  useEffect(() => {
+    if (discoverMode === "radar") {
+      setMinSubscribers(500);
+      setMaxSubscribers(20000);
+      setMaxChannelAgeDays(180);
+      setMinViewSubRatio(1.2);
+    } else {
+      setMinSubscribers(1000);
+      setMaxSubscribers(2000);
+      setMaxChannelAgeDays(45);
+      setMinViewSubRatio(1.2);
+    }
+  }, [discoverMode]);
+
   function addToReferencePool(row: ChannelRow) {
     try {
       // 使用频道 URL 作为参考
@@ -266,6 +287,10 @@ export default function DiscoverPage() {
         niche: selectedNiche,
         days: String(days),
         minDurationSec: String(minDurationSec),
+        minSubscribers: String(minSubscribers),
+        maxSubscribers: String(maxSubscribers),
+        maxChannelAgeDays: String(maxChannelAgeDays),
+        minViewSubRatio: String(minViewSubRatio),
         maxResults: "50",
         region: "US",
         lang: "en",
@@ -314,7 +339,7 @@ export default function DiscoverPage() {
               {discoverMode === "keyword" ? "按赛道关键词精准抓取" : "宽筛探索，用于发现新机会"}
             </span>
           </div>
-          <div className="grid gap-3 md:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-9">
             <label className="space-y-1 text-sm">
               <span className="text-zinc-600">赛道模板</span>
               <select value={selectedNiche} onChange={(e) => setSelectedNiche(e.target.value)} className="w-full rounded-lg border border-zinc-300 px-3 py-2">
@@ -336,7 +361,23 @@ export default function DiscoverPage() {
               <span className="text-zinc-600">最小时长(秒)</span>
               <input type="number" value={minDurationSec} onChange={(e) => setMinDurationSec(Number(e.target.value) || 240)} className="w-full rounded-lg border border-zinc-300 px-3 py-2" />
             </label>
-            <div className="flex items-end gap-2">
+            <label className="space-y-1 text-sm">
+              <span className="text-zinc-600">最小粉丝</span>
+              <input type="number" value={minSubscribers} onChange={(e) => setMinSubscribers(Number(e.target.value) || 0)} className="w-full rounded-lg border border-zinc-300 px-3 py-2" />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="text-zinc-600">最大粉丝</span>
+              <input type="number" value={maxSubscribers} onChange={(e) => setMaxSubscribers(Number(e.target.value) || 0)} className="w-full rounded-lg border border-zinc-300 px-3 py-2" />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="text-zinc-600">最大频道年龄(天)</span>
+              <input type="number" value={maxChannelAgeDays} onChange={(e) => setMaxChannelAgeDays(Number(e.target.value) || 0)} className="w-full rounded-lg border border-zinc-300 px-3 py-2" />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="text-zinc-600">最小播粉比</span>
+              <input type="number" step="0.1" value={minViewSubRatio} onChange={(e) => setMinViewSubRatio(Number(e.target.value) || 0)} className="w-full rounded-lg border border-zinc-300 px-3 py-2" />
+            </label>
+            <div className="flex items-end gap-2 md:col-span-9">
               <div className="flex flex-col gap-1">
                 <label className="flex items-center gap-1 text-xs text-zinc-600">
                   <input type="checkbox" checked={onlyMarked} onChange={(e) => setOnlyMarked(e.target.checked)} />
@@ -376,6 +417,9 @@ export default function DiscoverPage() {
                       <th className="px-3 py-2 text-right">7天视频数</th>
                       <th className="px-3 py-2 text-right">7天总播放</th>
                       <th className="px-3 py-2 text-right">中位播放</th>
+                      <th className="px-3 py-2 text-right">粉丝</th>
+                      <th className="px-3 py-2 text-right">频道年龄</th>
+                      <th className="px-3 py-2 text-right">播粉比</th>
                       <th className="px-3 py-2 text-left">样例标题</th>
                     </tr>
                   </thead>
@@ -398,6 +442,9 @@ export default function DiscoverPage() {
                         <td className="px-3 py-2 text-right">{num(row.videoCount7d)}</td>
                         <td className="px-3 py-2 text-right">{num(row.viewsSum7d)}</td>
                         <td className="px-3 py-2 text-right">{num(row.viewsMedian7d)}</td>
+                        <td className="px-3 py-2 text-right">{row.subscriberCount ? num(row.subscriberCount) : "-"}</td>
+                        <td className="px-3 py-2 text-right">{row.channelAgeDays != null ? `${row.channelAgeDays}d` : "-"}</td>
+                        <td className="px-3 py-2 text-right">{row.viewSubRatio != null ? row.viewSubRatio.toFixed(2) : "-"}</td>
                         <td className="px-3 py-2 text-zinc-600">
                           <div className="space-y-1">
                             <div className="text-xs">{row.sampleTitles.join(" / ")}</div>

@@ -20,6 +20,11 @@ export async function GET(request: NextRequest) {
     const minDurationSec = Number(
       searchParams.get("minDurationSec") || preset?.minDurationSec || 240,
     );
+    const minSubscribers = Number(searchParams.get("minSubscribers") || "0") || undefined;
+    const maxSubscribers = Number(searchParams.get("maxSubscribers") || "0") || undefined;
+    const maxChannelAgeDays = Number(searchParams.get("maxChannelAgeDays") || "0") || undefined;
+    const minViewSubRatio = Number(searchParams.get("minViewSubRatio") || "0") || undefined;
+    const maxViewSubRatio = Number(searchParams.get("maxViewSubRatio") || "0") || undefined;
 
     const persist = searchParams.get("persist") !== "0";
 
@@ -30,6 +35,11 @@ export async function GET(request: NextRequest) {
       days,
       maxResults,
       minDurationSec,
+      minSubscribers,
+      maxSubscribers,
+      maxChannelAgeDays,
+      minViewSubRatio,
+      maxViewSubRatio,
       weights: preset?.weights,
     });
 
@@ -72,6 +82,11 @@ export async function GET(request: NextRequest) {
       days,
       maxResults,
       minDurationSec,
+      minSubscribers,
+      maxSubscribers,
+      maxChannelAgeDays,
+      minViewSubRatio,
+      maxViewSubRatio,
       niche: preset?.slug ?? null,
       persist,
       runId,

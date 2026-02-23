@@ -30,6 +30,16 @@ type VideosItem = {
   };
 };
 
+type ChannelsItem = {
+  id: string;
+  snippet?: {
+    publishedAt?: string;
+  };
+  statistics?: {
+    subscriberCount?: string;
+  };
+};
+
 export type DiscoverInput = {
   query: string;
   regionCode?: string;
@@ -37,6 +47,11 @@ export type DiscoverInput = {
   days?: number;
   maxResults?: number;
   minDurationSec?: number;
+  minSubscribers?: number;
+  maxSubscribers?: number;
+  maxChannelAgeDays?: number;
+  minViewSubRatio?: number;
+  maxViewSubRatio?: number;
   weights?: {
     viewSum: number;
     medianView: number;
@@ -53,6 +68,9 @@ export type ChannelScore = {
   viewsMedian7d: number;
   score: number;
   sampleTitles: string[];
+  subscriberCount?: number;
+  channelAgeDays?: number;
+  viewSubRatio?: number;
 };
 
 const YT_API = "https://www.googleapis.com/youtube/v3";
@@ -185,11 +203,34 @@ export async function discoverFastGrowingChannels(input: DiscoverInput): Promise
     if (row.titles.length < 3) row.titles.push(title);
   }
 
+  const channelIds = [...channelMap.keys()];
+  const channelMeta = new Map<string, { subscriberCount?: number; channelAgeDays?: number }>();
+
+  for (let i = 0; i < channelIds.length; i += 50) {
+    const chunk = channelIds.slice(i, i + 50);
+    const chRes = await ytFetch<{ items: ChannelsItem[] }>("/channels", {
+      part: "snippet,statistics",
+      id: chunk.join(","),
+      maxResults: 50,
+    });
+
+    for (const ch of chRes.items ?? []) {
+      const subscriberCount = Number(ch.statistics?.subscriberCount ?? 0);
+      const publishedAt = ch.snippet?.publishedAt ? new Date(ch.snippet.publishedAt).getTime() : undefined;
+      const channelAgeDays = publishedAt ? Math.floor((Date.now() - publishedAt) / (24 * 60 * 60 * 1000)) : undefined;
+      channelMeta.set(ch.id, { subscriberCount, channelAgeDays });
+    }
+  }
+
   const channels: ChannelScore[] = [...channelMap.entries()]
     .map(([channelId, row]) => {
       const viewsSum7d = row.views.reduce((a, b) => a + b, 0);
       const viewsMedian7d = median(row.views);
       const videoCount7d = row.count;
+      const meta = channelMeta.get(channelId) || {};
+      const subscriberCount = meta.subscriberCount;
+      const channelAgeDays = meta.channelAgeDays;
+      const viewSubRatio = subscriberCount && subscriberCount > 0 ? Number((viewsMedian7d / subscriberCount).toFixed(2)) : undefined;
       const score = calcScore(viewsSum7d, viewsMedian7d, videoCount7d, weights);
 
       return {
@@ -201,8 +242,16 @@ export async function discoverFastGrowingChannels(input: DiscoverInput): Promise
         viewsMedian7d,
         score,
         sampleTitles: row.titles,
+        subscriberCount,
+        channelAgeDays,
+        viewSubRatio,
       };
     })
+    .filter((c) => (input.minSubscribers == null ? true : (c.subscriberCount ?? 0) >= input.minSubscribers!))
+    .filter((c) => (input.maxSubscribers == null ? true : (c.subscriberCount ?? 0) <= input.maxSubscribers!))
+    .filter((c) => (input.maxChannelAgeDays == null ? true : (c.channelAgeDays ?? Number.MAX_SAFE_INTEGER) <= input.maxChannelAgeDays!))
+    .filter((c) => (input.minViewSubRatio == null ? true : (c.viewSubRatio ?? 0) >= input.minViewSubRatio!))
+    .filter((c) => (input.maxViewSubRatio == null ? true : (c.viewSubRatio ?? Number.MAX_SAFE_INTEGER) <= input.maxViewSubRatio!))
     .sort((a, b) => b.score - a.score)
     .slice(0, 20);
 
