@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { TrendChart, PieChart, QuickAction } from "@/components/DashboardCharts";
+import QuotaMonitorPanel from "@/components/QuotaMonitorPanel";
 
 type DashboardData = {
   stats: {
@@ -111,6 +112,9 @@ export default function DashboardPage() {
             </div>
           </div>
         </header>
+
+        {/* YouTube API 配额监控 */}
+        <QuotaMonitorPanel />
 
         {/* Metrics */}
         {data && (
