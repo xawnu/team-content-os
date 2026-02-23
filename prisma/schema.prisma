@@ -99,6 +99,7 @@ model CompetitorVideo {
   channel         CompetitorChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
   @@index([channelId, publishedAt])
+  @@index([views(sort: Desc)])
 }
 
 model ContentPattern {
@@ -135,6 +136,11 @@ model EpisodePlan {
   metrics          EpisodeMetrics?
 
   @@index([projectId, plannedDate])
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([projectId, status])
+  @@index([topic])
+  @@index([createdAt(sort: Desc)])
+  @@index([status])
 }
 
 model EpisodeMetrics {
@@ -166,6 +172,7 @@ model DiscoverRun {
   candidates     DiscoverCandidate[]
 
   @@index([createdAt])
+  @@index([query, createdAt(sort: Desc)])
 }
 
 model DiscoverCandidate {
@@ -184,6 +191,7 @@ model DiscoverCandidate {
 
   @@index([runId])
   @@index([channelId])
+  @@index([score(sort: Desc)])
 }
 
 model NicheConfig {
@@ -216,6 +224,7 @@ model SimilarRun {
   items         SimilarCandidate[]
 
   @@index([createdAt])
+  @@index([seedChannelId, createdAt(sort: Desc)])
 }
 
 model SimilarCandidate {

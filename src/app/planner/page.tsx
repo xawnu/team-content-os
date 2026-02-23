@@ -64,15 +64,34 @@ export default function PlannerPage() {
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [compareVersions, setCompareVersions] = useState<any[] | null>(null);
   
-  // 历史记录筛选
+  // 历史记录筛选和分页
   const [filterTopic, setFilterTopic] = useState("");
   const [filterGoal, setFilterGoal] = useState("");
   const [selectedEpisodes, setSelectedEpisodes] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalEpisodes, setTotalEpisodes] = useState(0);
+  const pageSize = 20;
 
-  async function loadEpisodes() {
-    const res = await fetch("/api/planner/episodes");
+  async function loadEpisodes(page = 1) {
+    const params = new URLSearchParams({
+      page: String(page),
+      pageSize: String(pageSize),
+    });
+    
+    if (filterTopic) params.append("topic", filterTopic);
+    if (filterGoal) params.append("status", filterGoal);
+    
+    const res = await fetch(`/api/planner/episodes?${params}`);
     const json = await res.json();
-    if (res.ok && json.ok) setEpisodes(json.episodes ?? []);
+    if (res.ok && json.ok) {
+      setEpisodes(json.episodes ?? []);
+      if (json.pagination) {
+        setCurrentPage(json.pagination.page);
+        setTotalPages(json.pagination.totalPages);
+        setTotalEpisodes(json.pagination.total);
+      }
+    }
   }
 
   function toggleTone(tone: string) {
@@ -213,8 +232,7 @@ export default function PlannerPage() {
   }
   
   function selectAllEpisodes() {
-    const filtered = getFilteredEpisodes();
-    setSelectedEpisodes(new Set(filtered.map(e => e.id)));
+    setSelectedEpisodes(new Set(episodes.map(e => e.id)));
   }
   
   function clearSelection() {
@@ -239,7 +257,7 @@ export default function PlannerPage() {
         });
       }
       clearSelection();
-      await loadEpisodes();
+      await loadEpisodes(currentPage);
       alert('批量删除成功！');
     } catch (e) {
       alert('批量删除失败：' + (e instanceof Error ? e.message : '未知错误'));
@@ -247,8 +265,7 @@ export default function PlannerPage() {
   }
   
   function exportEpisodes() {
-    const filtered = getFilteredEpisodes();
-    const data = filtered.map(e => {
+    const data = episodes.map(e => {
       try {
         const outline = e.scriptOutline ? JSON.parse(e.scriptOutline) : {};
         return {
@@ -280,22 +297,6 @@ export default function PlannerPage() {
     URL.revokeObjectURL(url);
   }
   
-  function getFilteredEpisodes() {
-    return episodes.filter(e => {
-      if (filterTopic && !e.topic.toLowerCase().includes(filterTopic.toLowerCase())) {
-        return false;
-      }
-      if (filterGoal) {
-        try {
-          const outline = e.scriptOutline ? JSON.parse(e.scriptOutline) : {};
-          if (outline.contentGoal !== filterGoal) return false;
-        } catch {
-          return false;
-        }
-      }
-      return true;
-    });
-  }
 
   async function deleteEpisode(episodeId: string) {
     const ok = window.confirm("确认删除这条历史文案/选题吗？删除后不可恢复。");
@@ -623,12 +624,22 @@ export default function PlannerPage() {
                 <option value="承接转化">承接转化</option>
               </select>
               <button
-                onClick={() => { setFilterTopic(''); setFilterGoal(''); }}
+                onClick={() => { 
+                  setFilterTopic(''); 
+                  setFilterGoal(''); 
+                  loadEpisodes(1);
+                }}
                 className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-50"
               >
                 清除筛选
               </button>
-              {getFilteredEpisodes().length > 0 && (
+              <button
+                onClick={() => loadEpisodes(1)}
+                className="rounded border border-blue-300 px-2 py-1 text-xs text-blue-700 hover:bg-blue-50"
+              >
+                应用筛选
+              </button>
+              {episodes.length > 0 && (
                 <>
                   <button
                     onClick={selectAllEpisodes}
@@ -649,7 +660,7 @@ export default function PlannerPage() {
             </div>
             
             <p className="text-xs text-zinc-500 mt-2">
-              共 {episodes.length} 条记录，筛选后 {getFilteredEpisodes().length} 条
+              共 {totalEpisodes} 条记录，当前页 {episodes.length} 条
             </p>
           </div>
           <div className="overflow-x-auto">
@@ -659,7 +670,7 @@ export default function PlannerPage() {
                   <th className="px-3 py-2 text-left w-10">
                     <input
                       type="checkbox"
-                      checked={selectedEpisodes.size > 0 && selectedEpisodes.size === getFilteredEpisodes().length}
+                      checked={selectedEpisodes.size > 0 && selectedEpisodes.size === episodes.length}
                       onChange={(e) => e.target.checked ? selectAllEpisodes() : clearSelection()}
                     />
                   </th>
@@ -671,7 +682,7 @@ export default function PlannerPage() {
                 </tr>
               </thead>
               <tbody>
-                {getFilteredEpisodes().map((e) => (
+                {episodes.map((e) => (
                   <tr key={e.id} className="border-t border-zinc-100 align-top">
                     <td className="px-3 py-2">
                       <input
@@ -710,6 +721,33 @@ export default function PlannerPage() {
               </tbody>
             </table>
           </div>
+          
+          {/* 分页控件 */}
+          {totalPages > 1 && (
+            <div className="border-t border-zinc-100 px-4 py-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-zinc-600">
+                  共 {totalEpisodes} 条记录，第 {currentPage} / {totalPages} 页
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => loadEpisodes(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="rounded border border-zinc-300 px-3 py-1 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    上一页
+                  </button>
+                  <button
+                    onClick={() => loadEpisodes(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="rounded border border-zinc-300 px-3 py-1 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    下一页
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
 
         {selectedEpisode ? (
