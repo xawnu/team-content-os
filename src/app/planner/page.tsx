@@ -56,6 +56,11 @@ export default function PlannerPage() {
   const [error, setError] = useState<string>("");
   const [lastGenerateConfig, setLastGenerateConfig] = useState<any>(null);
   const [qualityScore, setQualityScore] = useState<any>(null);
+  
+  // 历史记录筛选
+  const [filterTopic, setFilterTopic] = useState("");
+  const [filterGoal, setFilterGoal] = useState("");
+  const [selectedEpisodes, setSelectedEpisodes] = useState<Set<string>>(new Set());
 
   async function loadEpisodes() {
     const res = await fetch("/api/planner/episodes");
@@ -125,6 +130,124 @@ export default function PlannerPage() {
       return;
     }
     await generateOneScript(true);
+  }
+  
+  function reuseEpisodeConfig(episode: Episode) {
+    try {
+      const outline = episode.scriptOutline ? JSON.parse(episode.scriptOutline) : {};
+      
+      // 恢复配置
+      if (outline.contentGoal) setContentGoal(outline.contentGoal);
+      if (outline.narrativeStructure) setNarrativeStructure(outline.narrativeStructure);
+      if (outline.toneStyle) setToneStyle(outline.toneStyle);
+      if (outline.paceLevel) setPaceLevel(outline.paceLevel);
+      if (outline.topicLock) setTopicLock(outline.topicLock);
+      if (outline.bannedWords) setBannedWords(outline.bannedWords);
+      if (outline.seedText) setSeedText(outline.seedText);
+      if (outline.direction) setDirection(outline.direction);
+      
+      // 滚动到顶部
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      alert('配置已复用！请检查参数并重新生成。');
+    } catch (e) {
+      setError('复用配置失败：' + (e instanceof Error ? e.message : '未知错误'));
+    }
+  }
+  
+  function toggleEpisodeSelection(id: string) {
+    const newSelected = new Set(selectedEpisodes);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedEpisodes(newSelected);
+  }
+  
+  function selectAllEpisodes() {
+    const filtered = getFilteredEpisodes();
+    setSelectedEpisodes(new Set(filtered.map(e => e.id)));
+  }
+  
+  function clearSelection() {
+    setSelectedEpisodes(new Set());
+  }
+  
+  async function batchDeleteEpisodes() {
+    if (selectedEpisodes.size === 0) {
+      alert('请先选择要删除的记录');
+      return;
+    }
+    
+    const ok = window.confirm(`确认删除选中的 ${selectedEpisodes.size} 条记录吗？删除后不可恢复。`);
+    if (!ok) return;
+    
+    try {
+      for (const id of selectedEpisodes) {
+        await fetch("/api/planner/episodes", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ episodeId: id }),
+        });
+      }
+      clearSelection();
+      await loadEpisodes();
+      alert('批量删除成功！');
+    } catch (e) {
+      alert('批量删除失败：' + (e instanceof Error ? e.message : '未知错误'));
+    }
+  }
+  
+  function exportEpisodes() {
+    const filtered = getFilteredEpisodes();
+    const data = filtered.map(e => {
+      try {
+        const outline = e.scriptOutline ? JSON.parse(e.scriptOutline) : {};
+        return {
+          主题: e.topic,
+          关键词: e.targetKeyword || '',
+          计划日期: e.plannedDate || '',
+          标题: e.titleOptions?.join(' / ') || '',
+          创建时间: e.createdAt || '',
+          配置: outline,
+        };
+      } catch {
+        return {
+          主题: e.topic,
+          关键词: e.targetKeyword || '',
+          计划日期: e.plannedDate || '',
+          标题: e.titleOptions?.join(' / ') || '',
+          创建时间: e.createdAt || '',
+        };
+      }
+    });
+    
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `episodes-export-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  
+  function getFilteredEpisodes() {
+    return episodes.filter(e => {
+      if (filterTopic && !e.topic.toLowerCase().includes(filterTopic.toLowerCase())) {
+        return false;
+      }
+      if (filterGoal) {
+        try {
+          const outline = e.scriptOutline ? JSON.parse(e.scriptOutline) : {};
+          if (outline.contentGoal !== filterGoal) return false;
+        } catch {
+          return false;
+        }
+      }
+      return true;
+    });
   }
 
   async function deleteEpisode(episodeId: string) {
@@ -399,11 +522,88 @@ export default function PlannerPage() {
         ) : null}
 
         <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-          <div className="border-b border-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-700">历史选题（可作为补充灵感）</div>
+          <div className="border-b border-zinc-100 px-4 py-3">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-zinc-700">历史选题（可作为补充灵感）</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={exportEpisodes}
+                  className="rounded border border-zinc-300 px-3 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
+                >
+                  📥 导出 JSON
+                </button>
+                {selectedEpisodes.size > 0 && (
+                  <button
+                    onClick={batchDeleteEpisodes}
+                    className="rounded border border-rose-300 px-3 py-1 text-xs text-rose-700 hover:bg-rose-50"
+                  >
+                    🗑️ 批量删除 ({selectedEpisodes.size})
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            {/* 筛选器 */}
+            <div className="flex gap-2 flex-wrap">
+              <input
+                type="text"
+                value={filterTopic}
+                onChange={(e) => setFilterTopic(e.target.value)}
+                placeholder="按主题筛选..."
+                className="rounded border border-zinc-300 px-2 py-1 text-xs flex-1 min-w-[150px]"
+              />
+              <select
+                value={filterGoal}
+                onChange={(e) => setFilterGoal(e.target.value)}
+                className="rounded border border-zinc-300 px-2 py-1 text-xs"
+              >
+                <option value="">全部目的</option>
+                <option value="拉新破圈">拉新破圈</option>
+                <option value="提升完播">提升完播</option>
+                <option value="提升互动">提升互动</option>
+                <option value="承接转化">承接转化</option>
+              </select>
+              <button
+                onClick={() => { setFilterTopic(''); setFilterGoal(''); }}
+                className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-50"
+              >
+                清除筛选
+              </button>
+              {getFilteredEpisodes().length > 0 && (
+                <>
+                  <button
+                    onClick={selectAllEpisodes}
+                    className="rounded border border-blue-300 px-2 py-1 text-xs text-blue-700 hover:bg-blue-50"
+                  >
+                    全选
+                  </button>
+                  {selectedEpisodes.size > 0 && (
+                    <button
+                      onClick={clearSelection}
+                      className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-50"
+                    >
+                      取消选择
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+            
+            <p className="text-xs text-zinc-500 mt-2">
+              共 {episodes.length} 条记录，筛选后 {getFilteredEpisodes().length} 条
+            </p>
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-zinc-100 text-zinc-600">
                 <tr>
+                  <th className="px-3 py-2 text-left w-10">
+                    <input
+                      type="checkbox"
+                      checked={selectedEpisodes.size > 0 && selectedEpisodes.size === getFilteredEpisodes().length}
+                      onChange={(e) => e.target.checked ? selectAllEpisodes() : clearSelection()}
+                    />
+                  </th>
                   <th className="px-3 py-2 text-left">主题</th>
                   <th className="px-3 py-2 text-left">关键词</th>
                   <th className="px-3 py-2 text-left">计划日期</th>
@@ -412,13 +612,27 @@ export default function PlannerPage() {
                 </tr>
               </thead>
               <tbody>
-                {episodes.map((e) => (
+                {getFilteredEpisodes().map((e) => (
                   <tr key={e.id} className="border-t border-zinc-100 align-top">
+                    <td className="px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedEpisodes.has(e.id)}
+                        onChange={() => toggleEpisodeSelection(e.id)}
+                      />
+                    </td>
                     <td className="px-3 py-2 font-medium">{e.topic}</td>
                     <td className="px-3 py-2">{e.targetKeyword || "-"}</td>
                     <td className="px-3 py-2">{e.plannedDate ? new Date(e.plannedDate).toLocaleDateString() : "-"}</td>
                     <td className="px-3 py-2 text-zinc-600">{(e.titleOptions || []).slice(0, 2).join(" / ")}</td>
                     <td className="px-3 py-2 text-right space-x-2">
+                      <button
+                        onClick={() => reuseEpisodeConfig(e)}
+                        className="rounded border border-blue-300 px-2 py-1 text-xs text-blue-700 hover:bg-blue-50"
+                        title="复用此配置"
+                      >
+                        复用
+                      </button>
                       <button
                         onClick={() => openEpisodeDetail(e.id)}
                         className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
