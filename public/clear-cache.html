@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>清除缓存 - Team Content OS</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .step {
+            background: #f9f9f9;
+            border-left: 4px solid #0066cc;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #0066cc;
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #0052a3;
+        }
+        .success {
+            background: #d4edda;
+            border-left-color: #28a745;
+            color: #155724;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        .info {
+            background: #d1ecf1;
+            border-left: 4px solid #0c5460;
+            color: #0c5460;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 清除缓存指南</h1>
+        
+        <div class="info">
+            <strong>当前版本：</strong> v1.0.12<br>
+            <strong>更新内容：</strong> 参考视频池可视化 + "再来一版" + 质量评分
+        </div>
+
+        <div class="step">
+            <h3>方法 1：强制刷新（推荐）</h3>
+            <p>按以下快捷键强制刷新页面：</p>
+            <ul>
+                <li><strong>Windows/Linux：</strong> <code>Ctrl + Shift + R</code> 或 <code>Ctrl + F5</code></li>
+                <li><strong>Mac：</strong> <code>Cmd + Shift + R</code></li>
+            </ul>
+            <button onclick="location.reload(true)">点击强制刷新</button>
+        </div>
+
+        <div class="step">
+            <h3>方法 2：清除浏览器缓存</h3>
+            <p><strong>Chrome/Edge：</strong></p>
+            <ol>
+                <li>按 <code>F12</code> 打开开发者工具</li>
+                <li>右键点击刷新按钮</li>
+                <li>选择"清空缓存并硬性重新加载"</li>
+            </ol>
+            <button onclick="clearCacheAndReload()">清除缓存并刷新</button>
+        </div>
+
+        <div class="step">
+            <h3>方法 3：无痕模式测试</h3>
+            <p>在无痕/隐私模式下打开页面：</p>
+            <ul>
+                <li><strong>Chrome/Edge：</strong> <code>Ctrl + Shift + N</code></li>
+                <li><strong>Firefox：</strong> <code>Ctrl + Shift + P</code></li>
+            </ul>
+            <button onclick="window.open('/planner', '_blank')">在新窗口打开 Planner</button>
+        </div>
+
+        <div class="step">
+            <h3>验证新功能</h3>
+            <p>清除缓存后，访问 <a href="/planner">/planner</a> 页面，你应该看到：</p>
+            <ul>
+                <li>✅ 参考视频池：可视化视频卡片（带缩略图）</li>
+                <li>✅ 生成结果：蓝色"再来一版"按钮</li>
+                <li>✅ 质量评分：彩色评分卡片（总分 + 三个维度）</li>
+            </ul>
+        </div>
+
+        <div class="success" id="result" style="display:none;">
+            ✅ 缓存已清除！正在跳转到 Planner 页面...
+        </div>
+
+        <hr style="margin: 30px 0;">
+        
+        <div class="info">
+            <strong>💡 提示：</strong><br>
+            如果清除缓存后仍然看不到新功能，请尝试：
+            <ol>
+                <li>完全关闭浏览器后重新打开</li>
+                <li>使用不同的浏览器测试</li>
+                <li>检查浏览器控制台是否有错误（F12 → Console）</li>
+            </ol>
+        </div>
+
+        <div style="margin-top: 30px; text-align: center;">
+            <button onclick="window.location.href='/planner'" style="background: #28a745; font-size: 18px; padding: 15px 30px;">
+                前往 Planner 页面 →
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function clearCacheAndReload() {
+            // 清除 localStorage
+            localStorage.clear();
+            
+            // 清除 sessionStorage
+            sessionStorage.clear();
+            
+            // 显示成功消息
+            document.getElementById('result').style.display = 'block';
+            
+            // 2秒后跳转
+            setTimeout(() => {
+                window.location.href = '/planner?_=' + Date.now();
+            }, 2000);
+        }
+
+        // 检测是否是强制刷新
+        if (performance.navigation.type === 1) {
+            console.log('页面已刷新');
+        }
+
+        // 显示当前构建信息
+        console.log('Team Content OS v1.0.12');
+        console.log('Build ID:', document.querySelector('meta[name="next-build-id"]')?.content || 'unknown');
+    </script>
+</body>
+</html>
