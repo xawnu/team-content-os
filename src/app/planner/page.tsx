@@ -4,9 +4,12 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import ReferenceVideoPool from "@/components/ReferenceVideoPool";
 import QualityScoreCard from "@/components/QualityScoreCard";
+import EnhancedScoreCard from "@/components/EnhancedScoreCard";
+import WeightConfig from "@/components/WeightConfig";
 import VersionHistory from "@/components/VersionHistory";
 import VersionCompare from "@/components/VersionCompare";
 import { evaluateScriptQuality } from "@/lib/script-quality";
+import { evaluateScriptQualityEnhanced } from "@/lib/script-quality-enhanced";
 type Episode = {
   id: string;
   topic: string;
@@ -58,6 +61,15 @@ export default function PlannerPage() {
   const [error, setError] = useState<string>("");
   const [lastGenerateConfig, setLastGenerateConfig] = useState<any>(null);
   const [qualityScore, setQualityScore] = useState<any>(null);
+  const [useEnhancedScoring, setUseEnhancedScoring] = useState(true);
+  const [scoreWeights, setScoreWeights] = useState({
+    structure: 0.20,
+    shootability: 0.25,
+    concreteness: 0.20,
+    creativity: 0.15,
+    emotion: 0.10,
+    rhythm: 0.10,
+  });
   
   // 版本历史
   const [scriptVersions, setScriptVersions] = useState<any[]>([]);
@@ -135,8 +147,10 @@ export default function PlannerPage() {
       if (!res.ok || !json?.ok) throw new Error(json?.error || "生成失败");
       setScript(json.script);
       
-      // 计算质量评分
-      const score = evaluateScriptQuality(json.script);
+      // 计算质量评分（使用增强版或基础版）
+      const score = useEnhancedScoring 
+        ? evaluateScriptQualityEnhanced(json.script, scoreWeights)
+        : evaluateScriptQuality(json.script);
       setQualityScore(score);
       
       // 保存到版本历史
@@ -529,8 +543,45 @@ export default function PlannerPage() {
               </div>
             )}
 
+            {/* 评分系统切换和权重配置 */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={useEnhancedScoring}
+                    onChange={(e) => setUseEnhancedScoring(e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="font-medium text-zinc-700">使用增强版评分系统</span>
+                  <span className="text-xs text-zinc-500">（包含创意性、情感共鸣、节奏感）</span>
+                </label>
+              </div>
+
+              {useEnhancedScoring && (
+                <WeightConfig
+                  weights={scoreWeights}
+                  onChange={setScoreWeights}
+                  onReset={() => setScoreWeights({
+                    structure: 0.20,
+                    shootability: 0.25,
+                    concreteness: 0.20,
+                    creativity: 0.15,
+                    emotion: 0.10,
+                    rhythm: 0.10,
+                  })}
+                />
+              )}
+            </div>
+
             {/* 质量评分卡片 */}
-            {qualityScore && <QualityScoreCard score={qualityScore} />}
+            {qualityScore && (
+              useEnhancedScoring ? (
+                <EnhancedScoreCard score={qualityScore} />
+              ) : (
+                <QualityScoreCard score={qualityScore} />
+              )
+            )}
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded border border-zinc-200 p-3"><p className="text-xs text-zinc-500">主题</p><p className="font-medium">{script.topic}</p></div>
