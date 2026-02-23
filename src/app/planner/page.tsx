@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import ReferenceVideoPool from "@/components/ReferenceVideoPool";
-
+import QualityScoreCard from "@/components/QualityScoreCard";
+import { evaluateScriptQuality } from "@/lib/script-quality";
 type Episode = {
   id: string;
   topic: string;
@@ -54,6 +55,7 @@ export default function PlannerPage() {
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
   const [error, setError] = useState<string>("");
   const [lastGenerateConfig, setLastGenerateConfig] = useState<any>(null);
+  const [qualityScore, setQualityScore] = useState<any>(null);
 
   async function loadEpisodes() {
     const res = await fetch("/api/planner/episodes");
@@ -101,6 +103,10 @@ export default function PlannerPage() {
       const json = await res.json();
       if (!res.ok || !json?.ok) throw new Error(json?.error || "生成失败");
       setScript(json.script);
+      
+      // 计算质量评分
+      const score = evaluateScriptQuality(json.script);
+      setQualityScore(score);
       
       // 保存配置供"再来一版"使用
       if (!useLastConfig) {
@@ -339,6 +345,9 @@ export default function PlannerPage() {
                 <p className="mt-2 text-blue-600">💡 点击"再来一版"将使用相同配置生成不同版本的文案</p>
               </div>
             )}
+
+            {/* 质量评分卡片 */}
+            {qualityScore && <QualityScoreCard score={qualityScore} />}
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded border border-zinc-200 p-3"><p className="text-xs text-zinc-500">主题</p><p className="font-medium">{script.topic}</p></div>
