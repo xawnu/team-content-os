@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import AddToPoolButton from "@/components/AddToPoolButton";
 
 type ChannelRow = {
   channelId: string;
@@ -180,12 +181,28 @@ export default function DiscoverPage() {
   }, [selectedNiche, niches]);
 
   function addToReferencePool(row: ChannelRow) {
-    const picks = row.sampleTitles.slice(0, 3).map((t) => `${t} | ${row.channelTitle}`);
-    const old = typeof window !== "undefined" ? window.localStorage.getItem("tcos_reference_videos") : null;
-    const existing = old ? (JSON.parse(old) as string[]) : [];
-    const merged = [...new Set([...(existing || []), ...picks])].slice(0, 3);
-    window.localStorage.setItem("tcos_reference_videos", JSON.stringify(merged));
-    alert(`已加入参考视频池：${merged.length}条`);
+    try {
+      // 使用频道 URL 作为参考
+      const channelUrl = row.channelUrl;
+      const old = typeof window !== "undefined" ? window.localStorage.getItem("tcos_reference_videos") : null;
+      const existing = old ? (JSON.parse(old) as string[]) : [];
+      
+      // 检查是否已存在
+      if (existing.includes(channelUrl)) {
+        alert(`频道 "${row.channelTitle}" 已在参考池中`);
+        return;
+      }
+      
+      // 添加频道 URL
+      const merged = [...existing, channelUrl];
+      window.localStorage.setItem("tcos_reference_videos", JSON.stringify(merged));
+      
+      // 显示成功提示
+      alert(`✓ 已添加 "${row.channelTitle}" 到参考池\n当前参考池：${merged.length} 个频道`);
+    } catch (error) {
+      console.error('添加到参考池失败:', error);
+      alert('添加失败，请重试');
+    }
   }
 
   async function run() {
@@ -303,12 +320,12 @@ export default function DiscoverPage() {
                         <td className="px-3 py-2 text-right">{num(row.viewsMedian7d)}</td>
                         <td className="px-3 py-2 text-zinc-600">
                           <div className="space-y-1">
-                            <div>{row.sampleTitles.join(" / ")}</div>
+                            <div className="text-xs">{row.sampleTitles.join(" / ")}</div>
                             <button
                               onClick={() => addToReferencePool(row)}
-                              className="rounded border border-indigo-300 px-2 py-0.5 text-xs text-indigo-700 hover:bg-indigo-50"
+                              className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200 transition-colors"
                             >
-                              加入参考视频池
+                              + 添加到参考池
                             </button>
                           </div>
                         </td>

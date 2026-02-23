@@ -72,6 +72,26 @@ export default function SimilarPage() {
     }
   }
 
+  function addToReferencePool(row: SimilarRow) {
+    try {
+      const channelUrl = row.channelUrl;
+      const old = typeof window !== "undefined" ? window.localStorage.getItem("tcos_reference_videos") : null;
+      const existing = old ? (JSON.parse(old) as string[]) : [];
+      
+      if (existing.includes(channelUrl)) {
+        alert(`频道 "${row.channelTitle}" 已在参考池中`);
+        return;
+      }
+      
+      const merged = [...existing, channelUrl];
+      window.localStorage.setItem("tcos_reference_videos", JSON.stringify(merged));
+      alert(`✓ 已添加 "${row.channelTitle}" 到参考池\n当前参考池：${merged.length} 个频道`);
+    } catch (error) {
+      console.error('添加到参考池失败:', error);
+      alert('添加失败，请重试');
+    }
+  }
+
   async function runSimilar() {
     if (!seedChannelId.trim()) return;
     setSimilarLoading(true);
@@ -183,7 +203,17 @@ export default function SimilarPage() {
                         </div>
                       </td>
                       <td className="px-3 py-2 text-right">{row.similarity}%</td>
-                      <td className="px-3 py-2 text-zinc-600">{row.matchedTerms.join(", ")}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-zinc-600 text-xs">{row.matchedTerms.join(", ")}</span>
+                          <button
+                            onClick={() => addToReferencePool(row)}
+                            className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200 transition-colors whitespace-nowrap"
+                          >
+                            + 添加到参考池
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
