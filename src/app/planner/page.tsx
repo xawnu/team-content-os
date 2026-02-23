@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import ReferenceVideoPool from "@/components/ReferenceVideoPool";
+import ReferencePoolManager from "@/components/ReferencePoolManager";
 import QualityScoreCard from "@/components/QualityScoreCard";
 import { evaluateScriptQuality } from "@/lib/script-quality";
 type Episode = {
@@ -389,6 +390,17 @@ export default function PlannerPage() {
                 <option value="快">快</option>
               </select>
             </label>
+            
+            {/* 参考池管理器 */}
+            <div className="md:col-span-6">
+              <ReferencePoolManager 
+                onSelect={(urls) => {
+                  // 将选中的 URL 填充到参考频道输入框
+                  setSeedText(urls.join('\n'));
+                }}
+              />
+            </div>
+            
             <div className="md:col-span-6">
               <ReferenceVideoPool videos={referenceVideos} onChange={setReferenceVideos} maxVideos={3} />
             </div>
