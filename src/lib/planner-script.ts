@@ -1,5 +1,6 @@
 import { getRecentTitles, resolveChannelId } from "@/lib/youtube/similar";
 import { openRouterJson } from "@/lib/openrouter";
+import { callAIWithRetry, localTemplates } from "@/lib/ai-stability";
 
 export type DetailedScriptResult = {
   topic: string;
@@ -79,59 +80,87 @@ export async function generateDetailedScriptFromSeeds(input: {
   const paceLevel = input.paceLevel || "中";
 
   try {
-    const ai = await openRouterJson<Omit<DetailedScriptResult, "provider">>([
-      {
-        role: "system",
-        content:
-          "你是YouTube内容策划。请基于参考频道风格，产出1篇可直接拍摄的详细文案。仅学习结构和节奏，禁止复用原句。禁止编造数字承诺；如果提到N种/个/条，contentItems必须严格给出N条。必须输出JSON。",
-      },
-      {
-        role: "user",
-        content: JSON.stringify({
-          language: input.language || "zh",
-          direction: input.direction || "同类型视频",
-          topicLock,
-          bannedWords,
-          requiredCount,
-          contentGoal,
-          narrativeStructure,
-          toneStyle,
-          paceLevel,
-          variationNonce: input.variationNonce || "v0",
-          requirement: {
-            count: 1,
-            outputFields: [
-              "topic",
-              "title",
-              "thumbnailCopy",
-              "opening15s",
-              "timeline",
-              "contentItems",
-              "cta",
-              "publishCopy",
-              "tags",
-              "differentiation",
-            ],
-            timelineFormat: "[{time,segment,voiceover,visuals}]",
-            constraints: [
-              "不要照抄参考标题和原句",
-              "至少给出3条差异化点",
-              "风格贴近参考频道但更适合实操拍摄",
-              "如果requiredCount存在，contentItems长度必须===requiredCount",
-              "如果topicLock存在，topic/title/contentItems必须明显围绕topicLock",
-              "如果bannedWords存在，输出中不能出现这些词",
-              "timeline每段segment必须标注覆盖的要点编号，如[要点1]、[要点2-4]",
-              "若requiredCount=20，timeline必须覆盖要点1到要点20，不能遗漏",
-              "timeline至少8段；每段voiceover>=60字，visuals>=40字，禁止泛化描述",
-              "每段必须给出具体镜头动作（机位/景别/转场之一）",
-              "严格遵循contentGoal/narrativeStructure/toneStyle/paceLevel",
-              "variationNonce代表本次版本号，本次输出必须与常见模板明显不同",
-            ],
+    // 使用重试机制调用 AI
+    const aiResult = await callAIWithRetry(
+      async () => {
+        return await openRouterJson<Omit<DetailedScriptResult, "provider">>([
+          {
+            role: "system",
+            content:
+              "你是YouTube内容策划。请基于参考频道风格，产出1篇可直接拍摄的详细文案。仅学习结构和节奏，禁止复用原句。禁止编造数字承诺；如果提到N种/个/条，contentItems必须严格给出N条。必须输出JSON。",
           },
-          references: { seeds, sampledTitles, referenceVideos },
-        }),
+          {
+            role: "user",
+            content: JSON.stringify({
+              language: input.language || "zh",
+              direction: input.direction || "同类型视频",
+              topicLock,
+              bannedWords,
+              requiredCount,
+              contentGoal,
+              narrativeStructure,
+              toneStyle,
+              paceLevel,
+              variationNonce: input.variationNonce || "v0",
+              requirement: {
+                count: 1,
+                outputFields: [
+                  "topic",
+                  "title",
+                  "thumbnailCopy",
+                  "opening15s",
+                  "timeline",
+                  "contentItems",
+                  "cta",
+                  "publishCopy",
+                  "tags",
+                  "differentiation",
+                ],
+                timelineFormat: "[{time,segment,voiceover,visuals}]",
+                constraints: [
+                  "不要照抄参考标题和原句",
+                  "至少给出3条差异化点",
+                  "风格贴近参考频道但更适合实操拍摄",
+                  "如果requiredCount存在，contentItems长度必须===requiredCount",
+                  "如果topicLock存在，topic/title/contentItems必须明显围绕topicLock",
+                  "如果bannedWords存在，输出中不能出现这些词",
+                  "timeline每段segment必须标注覆盖的要点编号，如[要点1]、[要点2-4]",
+                  "若requiredCount=20，timeline必须覆盖要点1到要点20，不能遗漏",
+                  "timeline至少8段；每段voiceover>=60字，visuals>=40字，禁止泛化描述",
+                  "每段必须给出具体镜头动作（机位/景别/转场之一）",
+                  "严格遵循contentGoal/narrativeStructure/toneStyle/paceLevel",
+                  "variationNonce代表本次版本号，本次输出必须与常见模板明显不同",
+                ],
+              },
+              references: { seeds, sampledTitles, referenceVideos },
+            }),
+          },
+        ]);
       },
-    ]);
+      {
+        maxRetries: 3,
+        retryDelay: 2000,
+        timeout: 60000,
+      }
+    );
+    
+    // 如果 AI 调用失败，使用本地模板降级
+    if (!aiResult.success || !aiResult.data) {
+      console.warn('AI 调用失败，使用本地模板降级');
+      const fallbackScript = localTemplates.generateBasicScript({
+        topic: topicLock || sampledTitles[0] || "内容主题",
+        contentItems: requiredCount ? Array.from({ length: requiredCount }, (_, i) => `要点${i + 1}`) : ["要点1", "要点2", "要点3", "要点4", "要点5"],
+        narrativeStructure,
+        paceLevel,
+      });
+      
+      return {
+        ...fallbackScript,
+        references: { seeds, sampledTitles, referenceVideos },
+      };
+    }
+    
+    const ai = aiResult.data;
 
     const contentItems = Array.isArray(ai.contentItems) ? ai.contentItems.map(String) : [];
     const timeline = Array.isArray(ai.timeline) && ai.timeline.length
