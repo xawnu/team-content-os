@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import ReferenceVideoPool from "@/components/ReferenceVideoPool";
 import QualityScoreCard from "@/components/QualityScoreCard";
+import VersionHistory from "@/components/VersionHistory";
+import VersionCompare from "@/components/VersionCompare";
 import { evaluateScriptQuality } from "@/lib/script-quality";
 type Episode = {
   id: string;
@@ -56,6 +58,11 @@ export default function PlannerPage() {
   const [error, setError] = useState<string>("");
   const [lastGenerateConfig, setLastGenerateConfig] = useState<any>(null);
   const [qualityScore, setQualityScore] = useState<any>(null);
+  
+  // 版本历史
+  const [scriptVersions, setScriptVersions] = useState<any[]>([]);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [compareVersions, setCompareVersions] = useState<any[] | null>(null);
   
   // 历史记录筛选
   const [filterTopic, setFilterTopic] = useState("");
@@ -113,6 +120,24 @@ export default function PlannerPage() {
       const score = evaluateScriptQuality(json.script);
       setQualityScore(score);
       
+      // 保存到版本历史
+      const newVersion = {
+        id: Date.now().toString(),
+        topic: json.script.topic || '未命名主题',
+        title: json.script.title || '未命名标题',
+        createdAt: new Date().toISOString(),
+        score: score.overall,
+        scriptOutline: config,
+        detailedScript: json.script,
+        config: {
+          contentGoal,
+          narrativeStructure,
+          toneStyle,
+        },
+      };
+      
+      setScriptVersions(prev => [newVersion, ...prev].slice(0, 10)); // 最多保留 10 个版本
+      
       // 保存配置供"再来一版"使用
       if (!useLastConfig) {
         setLastGenerateConfig(config);
@@ -130,6 +155,28 @@ export default function PlannerPage() {
       return;
     }
     await generateOneScript(true);
+  }
+  
+  function restoreVersion(version: any) {
+    setScript(version.detailedScript);
+    setQualityScore({ overall: version.score });
+    
+    // 恢复配置
+    if (version.config) {
+      if (version.config.contentGoal) setContentGoal(version.config.contentGoal);
+      if (version.config.narrativeStructure) setNarrativeStructure(version.config.narrativeStructure);
+      if (version.config.toneStyle) setToneStyle(version.config.toneStyle);
+    }
+    
+    setShowVersionHistory(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  
+  function handleCompareVersions(versionIds: string[]) {
+    const versions = versionIds.map(id => scriptVersions.find(v => v.id === id)).filter(Boolean);
+    if (versions.length === 2) {
+      setCompareVersions(versions as any[]);
+    }
   }
   
   function reuseEpisodeConfig(episode: Episode) {
@@ -447,6 +494,17 @@ export default function PlannerPage() {
                   </svg>
                   {loading ? "生成中..." : "再来一版"}
                 </button>
+                {scriptVersions.length > 0 && (
+                  <button
+                    onClick={() => setShowVersionHistory(!showVersionHistory)}
+                    className="rounded bg-purple-600 px-3 py-1.5 text-sm text-white hover:bg-purple-700 flex items-center gap-1"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    版本历史 ({scriptVersions.length})
+                  </button>
+                )}
               </div>
               <p className="text-xs text-zinc-500">仅生成 1 篇，可直接拍摄</p>
             </div>
@@ -711,6 +769,38 @@ export default function PlannerPage() {
             })()}
           </section>
         ) : null}
+        
+        {/* 版本历史弹窗 */}
+        {showVersionHistory && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="max-h-[90vh] w-full max-w-4xl overflow-auto rounded-xl bg-white p-6 shadow-2xl">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-zinc-900">版本历史</h2>
+                <button
+                  onClick={() => setShowVersionHistory(false)}
+                  className="rounded-full p-2 hover:bg-zinc-100"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <VersionHistory
+                versions={scriptVersions}
+                onRestore={restoreVersion}
+                onCompare={handleCompareVersions}
+              />
+            </div>
+          </div>
+        )}
+        
+        {/* 版本对比弹窗 */}
+        {compareVersions && compareVersions.length === 2 && (
+          <VersionCompare
+            versions={compareVersions as [any, any]}
+            onClose={() => setCompareVersions(null)}
+          />
+        )}
       </div>
     </main>
   );
