@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getBestAvailableKey, updateKeyStatus } from "@/lib/youtube-key-manager";
 
 const YOUTUBE_API_KEYS = (process.env.YOUTUBE_API_KEYS || process.env.YOUTUBE_API_KEY || "")
   .split(",")
@@ -90,18 +91,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "未配置 YouTube API Key" }, { status: 500 });
   }
   
-  // 尝试所有可用的 API Key
-  for (const apiKey of YOUTUBE_API_KEYS) {
-    try {
-      const info = await fetchVideoInfo(videoId, apiKey);
-      if (info) {
-        return NextResponse.json({ ok: true, video: info });
-      }
-    } catch (error) {
-      console.error(`API Key ${apiKey.slice(0, 8)}... 失败:`, error);
-      continue;
-    }
+  // 使用智能 Key 分配
+  const bestKey = getBestAvailableKey();
+  if (!bestKey) {
+    return NextResponse.json({ ok: false, error: "没有可用的 API Key" }, { status: 500 });
   }
   
-  return NextResponse.json({ ok: false, error: "所有 API Key 均失败" }, { status: 500 });
+  try {
+    const info = await fetchVideoInfo(videoId, bestKey);
+    if (info) {
+      // 更新 Key 状态（成功，消耗1配额）
+      updateKeyStatus(bestKey, true, 1);
+      return NextResponse.json({ ok: true, video: info });
+    }
+    
+    // 更新 Key 状态（失败）
+    updateKeyStatus(bestKey, false);
+    return NextResponse.json({ ok: false, error: "获取视频信息失败" }, { status: 500 });
+  } catch (error) {
+    console.error(`API Key ${bestKey.slice(0, 8)}... 失败:`, error);
+    updateKeyStatus(bestKey, false);
+    return NextResponse.json({ ok: false, error: "API 调用失败" }, { status: 500 });
+  }
 }

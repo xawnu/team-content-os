@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import ReferenceVideoPool from "@/components/ReferenceVideoPool";
 import QualityScoreCard from "@/components/QualityScoreCard";
+import QuotaMonitorPanel from "@/components/QuotaMonitorPanel";
 import { evaluateScriptQuality } from "@/lib/script-quality";
 type Episode = {
   id: string;
@@ -318,6 +319,9 @@ export default function PlannerPage() {
   return (
     <main className="min-h-screen bg-zinc-50 p-6 text-zinc-900 md:p-8">
       <div className="mx-auto max-w-6xl space-y-6">
+        {/* 配额监控面板 */}
+        <QuotaMonitorPanel />
+        
         <header className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
