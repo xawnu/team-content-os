@@ -53,6 +53,7 @@ export default function PlannerPage() {
   const [script, setScript] = useState<DetailedScript | null>(null);
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
   const [error, setError] = useState<string>("");
+  const [lastGenerateConfig, setLastGenerateConfig] = useState<any>(null);
 
   async function loadEpisodes() {
     const res = await fetch("/api/planner/episodes");
@@ -64,7 +65,7 @@ export default function PlannerPage() {
     setToneStyle((prev) => (prev.includes(tone) ? prev.filter((t) => t !== tone) : [...prev, tone]));
   }
 
-  async function generateOneScript() {
+  async function generateOneScript(useLastConfig = false) {
     const referenceVideoUrls = referenceVideos.map((v) => v.url);
 
     if (!referenceVideoUrls.length) {
@@ -74,32 +75,50 @@ export default function PlannerPage() {
 
     setLoading(true);
     setError("");
+    
+    const config = useLastConfig && lastGenerateConfig ? lastGenerateConfig : {
+      seedText,
+      direction,
+      topicLock,
+      bannedWords,
+      contentGoal,
+      narrativeStructure,
+      toneStyle,
+      paceLevel,
+      referenceVideos: referenceVideoUrls,
+      language: "zh",
+    };
+    
     try {
       const res = await fetch("/api/planner/script-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          seedText,
-          direction,
-          topicLock,
-          bannedWords,
-          contentGoal,
-          narrativeStructure,
-          toneStyle,
-          paceLevel,
-          referenceVideos: referenceVideoUrls,
-          variationNonce: Date.now(),
-          language: "zh",
+          ...config,
+          variationNonce: Date.now(), // 每次生成使用新的 nonce
         }),
       });
       const json = await res.json();
       if (!res.ok || !json?.ok) throw new Error(json?.error || "生成失败");
       setScript(json.script);
+      
+      // 保存配置供"再来一版"使用
+      if (!useLastConfig) {
+        setLastGenerateConfig(config);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "生成失败");
     } finally {
       setLoading(false);
     }
+  }
+  
+  async function regenerateScript() {
+    if (!lastGenerateConfig) {
+      setError("没有可用的生成配置");
+      return;
+    }
+    await generateOneScript(true);
   }
 
   async function deleteEpisode(episodeId: string) {
@@ -271,7 +290,7 @@ export default function PlannerPage() {
             </div>
             <div className="flex items-end md:col-span-6">
               <button
-                onClick={generateOneScript}
+                onClick={() => generateOneScript(false)}
                 disabled={loading}
                 className="w-full rounded bg-zinc-900 px-3 py-2 text-sm text-white disabled:opacity-50"
               >
@@ -285,9 +304,41 @@ export default function PlannerPage() {
         {script ? (
           <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">生成结果（{script.provider === "ai" ? "AI" : "模板"}）</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-semibold">生成结果（{script.provider === "ai" ? "AI" : "模板"}）</h2>
+                <button
+                  onClick={regenerateScript}
+                  disabled={loading}
+                  className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  title="使用相同配置生成不同版本"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  {loading ? "生成中..." : "再来一版"}
+                </button>
+              </div>
               <p className="text-xs text-zinc-500">仅生成 1 篇，可直接拍摄</p>
             </div>
+            
+            {lastGenerateConfig && (
+              <div className="rounded bg-blue-50 border border-blue-200 p-3 text-xs">
+                <p className="font-medium text-blue-900 mb-1">📋 当前配置</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-blue-700">
+                  <div><span className="text-blue-500">内容目的：</span>{lastGenerateConfig.contentGoal}</div>
+                  <div><span className="text-blue-500">叙事结构：</span>{lastGenerateConfig.narrativeStructure}</div>
+                  <div><span className="text-blue-500">表达语气：</span>{lastGenerateConfig.toneStyle?.join("、")}</div>
+                  <div><span className="text-blue-500">节奏强度：</span>{lastGenerateConfig.paceLevel}</div>
+                  {lastGenerateConfig.topicLock && (
+                    <div className="col-span-2"><span className="text-blue-500">主题锁定：</span>{lastGenerateConfig.topicLock}</div>
+                  )}
+                  {lastGenerateConfig.bannedWords && (
+                    <div className="col-span-2"><span className="text-blue-500">禁用词：</span>{lastGenerateConfig.bannedWords}</div>
+                  )}
+                </div>
+                <p className="mt-2 text-blue-600">💡 点击"再来一版"将使用相同配置生成不同版本的文案</p>
+              </div>
+            )}
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded border border-zinc-200 p-3"><p className="text-xs text-zinc-500">主题</p><p className="font-medium">{script.topic}</p></div>
