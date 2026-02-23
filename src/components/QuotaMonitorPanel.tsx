@@ -1,53 +1,160 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getKeyStats, checkQuotaWarning, setupDailyReset } from "@/lib/youtube-key-manager";
 
-type KeyStats = {
-  keys: Array<{
-    keyPrefix: string;
-    quotaUsed: number;
-    quotaLimit: number;
-    quotaRemaining: number;
-    lastUsed: number;
-    errorCount: number;
-    status: 'active' | 'limited' | 'exhausted' | 'error';
-  }>;
-  totalQuotaUsed: number;
-  totalQuotaLimit: number;
-  totalQuotaRemaining: number;
-  healthyKeyCount: number;
-  lastUpdated: number;
+type KeyInfo = {
+  id: string;
+  keyPrefix: string;
+  quotaUsed: number;
+  quotaLimit: number;
+  quotaRemaining: number;
+  lastUsed: number;
+  errorCount: number;
+  status: 'active' | 'limited' | 'exhausted' | 'error';
 };
 
+const QUOTA_WARNING_THRESHOLD = 0.8;
+const KEY_STORAGE_KEY = 'youtube_api_key_stats';
+
 export default function QuotaMonitorPanel() {
-  const [stats, setStats] = useState<KeyStats | null>(null);
-  const [warning, setWarning] = useState<{ warning: boolean; message: string } | null>(null);
+  const [keys, setKeys] = useState<KeyInfo[]>([]);
   const [expanded, setExpanded] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 初始化
-    loadStats();
+    loadKeys();
     setupDailyReset();
     
     // 每分钟更新一次
-    const interval = setInterval(loadStats, 60000);
+    const interval = setInterval(() => {
+      updateStats();
+    }, 60000);
     
     return () => clearInterval(interval);
   }, []);
 
-  function loadStats() {
-    const keyStats = getKeyStats();
-    const warningInfo = checkQuotaWarning();
-    
-    setStats(keyStats);
-    setWarning(warningInfo);
+  async function loadKeys() {
+    try {
+      // 从服务端获取 Key 列表
+      const res = await fetch('/api/youtube/keys');
+      const data = await res.json();
+      
+      if (!data.ok || !data.keys) {
+        setLoading(false);
+        return;
+      }
+      
+      // 从 localStorage 加载使用统计
+      const savedStats = loadSavedStats();
+      
+      // 合并服务端 Key 信息和本地统计
+      const mergedKeys = data.keys.map((key: any) => {
+        const saved = savedStats.get(key.id);
+        return {
+          id: key.id,
+          keyPrefix: key.keyPrefix,
+          quotaUsed: saved?.quotaUsed || 0,
+          quotaLimit: key.quotaLimit,
+          quotaRemaining: key.quotaLimit - (saved?.quotaUsed || 0),
+          lastUsed: saved?.lastUsed || 0,
+          errorCount: saved?.errorCount || 0,
+          status: calculateStatus(saved?.quotaUsed || 0, key.quotaLimit, saved?.errorCount || 0),
+        };
+      });
+      
+      setKeys(mergedKeys);
+      setLoading(false);
+    } catch (error) {
+      console.error('加载 Key 信息失败:', error);
+      setLoading(false);
+    }
   }
 
-  if (!stats) return null;
+  function loadSavedStats(): Map<string, any> {
+    try {
+      const data = localStorage.getItem(KEY_STORAGE_KEY);
+      if (!data) return new Map();
+      
+      const stats = JSON.parse(data);
+      return new Map(Object.entries(stats));
+    } catch {
+      return new Map();
+    }
+  }
 
-  const usageRate = stats.totalQuotaUsed / stats.totalQuotaLimit;
+  function calculateStatus(quotaUsed: number, quotaLimit: number, errorCount: number): KeyInfo['status'] {
+    if (errorCount >= 3) return 'error';
+    
+    const remaining = quotaLimit - quotaUsed;
+    if (remaining === 0) return 'exhausted';
+    if (remaining < quotaLimit * (1 - QUOTA_WARNING_THRESHOLD)) return 'limited';
+    return 'active';
+  }
+
+  function updateStats() {
+    const savedStats = loadSavedStats();
+    
+    setKeys(prevKeys => prevKeys.map(key => {
+      const saved = savedStats.get(key.id);
+      return {
+        ...key,
+        quotaUsed: saved?.quotaUsed || key.quotaUsed,
+        quotaRemaining: key.quotaLimit - (saved?.quotaUsed || key.quotaUsed),
+        lastUsed: saved?.lastUsed || key.lastUsed,
+        errorCount: saved?.errorCount || key.errorCount,
+        status: calculateStatus(saved?.quotaUsed || key.quotaUsed, key.quotaLimit, saved?.errorCount || key.errorCount),
+      };
+    }));
+  }
+
+  function setupDailyReset() {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    
+    const msUntilMidnight = tomorrow.getTime() - now.getTime();
+    
+    setTimeout(() => {
+      // 重置配额
+      localStorage.removeItem(KEY_STORAGE_KEY);
+      loadKeys();
+      
+      // 设置每24小时重置一次
+      setInterval(() => {
+        localStorage.removeItem(KEY_STORAGE_KEY);
+        loadKeys();
+      }, 24 * 60 * 60 * 1000);
+    }, msUntilMidnight);
+  }
+
+  if (loading) {
+    return (
+      <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+        <p className="text-sm text-zinc-500">加载配额信息...</p>
+      </div>
+    );
+  }
+
+  if (keys.length === 0) {
+    return (
+      <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 shadow-sm">
+        <p className="text-sm text-yellow-800">
+          ⚠️ 未配置 YouTube API Key。请在 .env.local 中配置 YOUTUBE_API_KEY 或 YOUTUBE_API_KEYS
+        </p>
+      </div>
+    );
+  }
+
+  const totalQuotaUsed = keys.reduce((sum, k) => sum + k.quotaUsed, 0);
+  const totalQuotaLimit = keys.reduce((sum, k) => sum + k.quotaLimit, 0);
+  const totalQuotaRemaining = keys.reduce((sum, k) => sum + k.quotaRemaining, 0);
+  const healthyKeyCount = keys.filter(k => k.status === 'active').length;
+  
+  const usageRate = totalQuotaLimit > 0 ? totalQuotaUsed / totalQuotaLimit : 0;
   const usagePercent = Math.round(usageRate * 100);
+
+  const warning = checkWarning(usageRate, healthyKeyCount, keys.length);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -75,6 +182,22 @@ export default function QuotaMonitorPanel() {
     return 'bg-green-500';
   };
 
+  function checkWarning(rate: number, healthy: number, total: number) {
+    if (rate >= 0.9) {
+      return { warning: true, message: `⚠️ 配额即将耗尽！已使用 ${Math.round(rate * 100)}%` };
+    }
+    if (rate >= QUOTA_WARNING_THRESHOLD) {
+      return { warning: true, message: `⚠️ 配额使用较高，已使用 ${Math.round(rate * 100)}%` };
+    }
+    if (healthy === 0) {
+      return { warning: true, message: '⚠️ 所有 API Key 均不可用！' };
+    }
+    if (healthy <= 1 && total > 1) {
+      return { warning: true, message: `⚠️ 仅剩 ${healthy} 个可用 Key` };
+    }
+    return { warning: false, message: '✓ 配额充足' };
+  }
+
   return (
     <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
@@ -99,7 +222,7 @@ export default function QuotaMonitorPanel() {
         <div className="flex items-center justify-between text-sm">
           <span className="text-zinc-600">总配额使用</span>
           <span className="font-medium">
-            {stats.totalQuotaUsed.toLocaleString()} / {stats.totalQuotaLimit.toLocaleString()} ({usagePercent}%)
+            {totalQuotaUsed.toLocaleString()} / {totalQuotaLimit.toLocaleString()} ({usagePercent}%)
           </span>
         </div>
         <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
@@ -109,8 +232,8 @@ export default function QuotaMonitorPanel() {
           />
         </div>
         <div className="flex items-center justify-between text-xs text-zinc-500">
-          <span>剩余：{stats.totalQuotaRemaining.toLocaleString()}</span>
-          <span>健康 Key：{stats.healthyKeyCount} / {stats.keys.length}</span>
+          <span>剩余：{totalQuotaRemaining.toLocaleString()}</span>
+          <span>健康 Key：{healthyKeyCount} / {keys.length}</span>
         </div>
       </div>
 
@@ -118,8 +241,8 @@ export default function QuotaMonitorPanel() {
       {expanded && (
         <div className="mt-4 space-y-2 border-t border-zinc-200 pt-3">
           <p className="text-xs font-medium text-zinc-600 mb-2">各 Key 详情：</p>
-          {stats.keys.map((key, i) => (
-            <div key={i} className="rounded border border-zinc-200 p-2 space-y-1">
+          {keys.map((key) => (
+            <div key={key.id} className="rounded border border-zinc-200 p-2 space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono text-zinc-600">{key.keyPrefix}</span>
                 <span className={`text-xs px-2 py-0.5 rounded ${getStatusColor(key.status)}`}>
