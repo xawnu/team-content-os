@@ -83,8 +83,10 @@ export default function DiscoverPage() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisProvider, setAnalysisProvider] = useState<string>("rules");
   const [useAiAnalysis, setUseAiAnalysis] = useState(true);
-  const [marks, setMarks] = useState<Record<string, { channelTitle?: string }>>({});
+  const [marks, setMarks] = useState<Record<string, { channelTitle?: string; marked?: boolean; priority?: boolean }>>({});
   const [onlyMarked, setOnlyMarked] = useState(false);
+  const [onlyPriority, setOnlyPriority] = useState(false);
+  const [discoverMode, setDiscoverMode] = useState<"keyword" | "radar">("keyword");
 
   const top = useMemo(() => data?.channels?.[0], [data]);
 
@@ -146,12 +148,61 @@ export default function DiscoverPage() {
     if (res.ok && json?.ok) setMarks(json.marks ?? {});
   }
 
-  async function toggleMark(row: ChannelRow) {
-    const marked = Boolean(marks[row.channelId]);
+  async function toggleMarked(row: ChannelRow) {
+    const current = marks[row.channelId];
+    const nextMarked = !(current?.marked ?? Boolean(current));
+    const nextPriority = current?.priority ?? false;
+
+    if (!nextMarked && !nextPriority) {
+      const res = await fetch("/api/channel-marks", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId: row.channelId }),
+      });
+      const json = await res.json();
+      if (res.ok && json?.ok) setMarks(json.marks ?? {});
+      return;
+    }
+
     const res = await fetch("/api/channel-marks", {
-      method: marked ? "DELETE" : "POST",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ channelId: row.channelId, channelTitle: row.channelTitle }),
+      body: JSON.stringify({
+        channelId: row.channelId,
+        channelTitle: row.channelTitle,
+        marked: nextMarked,
+        priority: nextPriority,
+      }),
+    });
+    const json = await res.json();
+    if (res.ok && json?.ok) setMarks(json.marks ?? {});
+  }
+
+  async function togglePriority(row: ChannelRow) {
+    const current = marks[row.channelId];
+    const nextPriority = !(current?.priority ?? false);
+    const nextMarked = current?.marked ?? true;
+
+    if (!nextMarked && !nextPriority) {
+      const res = await fetch("/api/channel-marks", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId: row.channelId }),
+      });
+      const json = await res.json();
+      if (res.ok && json?.ok) setMarks(json.marks ?? {});
+      return;
+    }
+
+    const res = await fetch("/api/channel-marks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        channelId: row.channelId,
+        channelTitle: row.channelTitle,
+        marked: nextMarked,
+        priority: nextPriority,
+      }),
     });
     const json = await res.json();
     if (res.ok && json?.ok) setMarks(json.marks ?? {});
@@ -209,8 +260,9 @@ export default function DiscoverPage() {
     setLoading(true);
     setError(null);
     try {
+      const effectiveQuery = discoverMode === "radar" ? (query || "how to") : query;
       const params = new URLSearchParams({
-        q: query,
+        q: effectiveQuery,
         niche: selectedNiche,
         days: String(days),
         minDurationSec: String(minDurationSec),
@@ -245,6 +297,23 @@ export default function DiscoverPage() {
         </header>
 
         <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex flex-wrap gap-2">
+            <button
+              onClick={() => setDiscoverMode("keyword")}
+              className={`rounded px-3 py-1 text-xs ${discoverMode === "keyword" ? "bg-zinc-900 text-white" : "border border-zinc-300 text-zinc-700"}`}
+            >
+              关键词模式
+            </button>
+            <button
+              onClick={() => setDiscoverMode("radar")}
+              className={`rounded px-3 py-1 text-xs ${discoverMode === "radar" ? "bg-zinc-900 text-white" : "border border-zinc-300 text-zinc-700"}`}
+            >
+              全站雷达模式
+            </button>
+            <span className="text-xs text-zinc-500 self-center">
+              {discoverMode === "keyword" ? "按赛道关键词精准抓取" : "宽筛探索，用于发现新机会"}
+            </span>
+          </div>
           <div className="grid gap-3 md:grid-cols-5">
             <label className="space-y-1 text-sm">
               <span className="text-zinc-600">赛道模板</span>
@@ -268,10 +337,16 @@ export default function DiscoverPage() {
               <input type="number" value={minDurationSec} onChange={(e) => setMinDurationSec(Number(e.target.value) || 240)} className="w-full rounded-lg border border-zinc-300 px-3 py-2" />
             </label>
             <div className="flex items-end gap-2">
-              <label className="flex items-center gap-1 text-xs text-zinc-600">
-                <input type="checkbox" checked={onlyMarked} onChange={(e) => setOnlyMarked(e.target.checked)} />
-                只看已标记
-              </label>
+              <div className="flex flex-col gap-1">
+                <label className="flex items-center gap-1 text-xs text-zinc-600">
+                  <input type="checkbox" checked={onlyMarked} onChange={(e) => setOnlyMarked(e.target.checked)} />
+                  只看已标记
+                </label>
+                <label className="flex items-center gap-1 text-xs text-zinc-600">
+                  <input type="checkbox" checked={onlyPriority} onChange={(e) => setOnlyPriority(e.target.checked)} />
+                  只看重点关注
+                </label>
+              </div>
               <button onClick={run} disabled={loading} className="w-full rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50">
                 {loading ? "抓取中..." : "运行分析"}
               </button>
@@ -305,13 +380,18 @@ export default function DiscoverPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.channels.filter((row) => !onlyMarked || Boolean(marks[row.channelId])).map((row) => (
+                    {data.channels
+                      .filter((row) => !onlyMarked || Boolean(marks[row.channelId]?.marked ?? marks[row.channelId]))
+                      .filter((row) => !onlyPriority || Boolean(marks[row.channelId]?.priority))
+                      .map((row) => (
                       <tr key={row.channelId} className="border-t border-zinc-100 align-top">
                         <td className="px-3 py-2 font-medium">
                           <div className="flex items-center gap-2">
                             <a href={row.channelUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">{row.channelTitle}</a>
-                            {marks[row.channelId] ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">重点</span> : null}
-                            <button onClick={() => toggleMark(row)} className="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] text-zinc-700 hover:bg-zinc-50">{marks[row.channelId] ? "取消标记" : "标记"}</button>
+                            {marks[row.channelId]?.marked ? <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] text-sky-700">标记</span> : null}
+                            {marks[row.channelId]?.priority ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">重点</span> : null}
+                            <button onClick={() => toggleMarked(row)} className="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] text-zinc-700 hover:bg-zinc-50">{marks[row.channelId]?.marked ? "取消标记" : "标记"}</button>
+                            <button onClick={() => togglePriority(row)} className="rounded border border-amber-300 px-1.5 py-0.5 text-[10px] text-amber-700 hover:bg-amber-50">{marks[row.channelId]?.priority ? "取消重点" : "重点关注"}</button>
                           </div>
                         </td>
                         <td className="px-3 py-2 text-right font-semibold">{row.score}</td>
@@ -408,8 +488,10 @@ export default function DiscoverPage() {
                       <td className="px-3 py-2 font-medium">
                         <div className="flex items-center gap-2">
                           <a href={row.channelUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">{row.channelTitle}</a>
-                          {marks[row.channelId] ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">重点</span> : null}
-                          <button onClick={() => toggleMark(row)} className="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] text-zinc-700 hover:bg-zinc-50">{marks[row.channelId] ? "取消标记" : "标记"}</button>
+                          {marks[row.channelId]?.marked ? <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] text-sky-700">标记</span> : null}
+                          {marks[row.channelId]?.priority ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">重点</span> : null}
+                          <button onClick={() => toggleMarked(row)} className="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] text-zinc-700 hover:bg-zinc-50">{marks[row.channelId]?.marked ? "取消标记" : "标记"}</button>
+                          <button onClick={() => togglePriority(row)} className="rounded border border-amber-300 px-1.5 py-0.5 text-[10px] text-amber-700 hover:bg-amber-50">{marks[row.channelId]?.priority ? "取消重点" : "重点关注"}</button>
                         </div>
                       </td>
                       <td className="px-3 py-2 text-right font-semibold">{row.score}</td>

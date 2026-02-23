@@ -4,7 +4,7 @@ import path from "node:path";
 
 export const runtime = "nodejs";
 
-type MarkMap = Record<string, { channelTitle?: string; note?: string; updatedAt: string }>;
+type MarkMap = Record<string, { channelTitle?: string; note?: string; marked?: boolean; priority?: boolean; updatedAt: string }>;
 
 function filePath() {
   return path.join(process.cwd(), "data", "channel-marks.json");
@@ -37,9 +37,13 @@ export async function POST(request: NextRequest) {
   if (!channelId) return NextResponse.json({ ok: false, error: "channelId required" }, { status: 400 });
 
   const marks = readMarks();
+  const prev = marks[channelId] || { updatedAt: new Date().toISOString() };
+
   marks[channelId] = {
-    channelTitle: String(body.channelTitle || ""),
-    note: String(body.note || ""),
+    channelTitle: String(body.channelTitle || prev.channelTitle || ""),
+    note: String(body.note || prev.note || ""),
+    marked: body.marked === undefined ? (prev.marked ?? true) : Boolean(body.marked),
+    priority: body.priority === undefined ? (prev.priority ?? false) : Boolean(body.priority),
     updatedAt: new Date().toISOString(),
   };
   writeMarks(marks);
