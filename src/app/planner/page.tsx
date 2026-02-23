@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import ReferenceVideoPool from "@/components/ReferenceVideoPool";
 
 type Episode = {
   id: string;
@@ -27,6 +28,15 @@ type DetailedScript = {
   provider: "ai" | "template";
 };
 
+type VideoInfo = {
+  id: string;
+  title: string;
+  thumbnail: string;
+  duration: string;
+  channelTitle: string;
+  url: string;
+};
+
 export default function PlannerPage() {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,7 +48,7 @@ export default function PlannerPage() {
   const [narrativeStructure, setNarrativeStructure] = useState("问题→方案→结果");
   const [toneStyle, setToneStyle] = useState<string[]>(["专业理性"]);
   const [paceLevel, setPaceLevel] = useState("中");
-  const [referenceVideosText, setReferenceVideosText] = useState("");
+  const [referenceVideos, setReferenceVideos] = useState<VideoInfo[]>([]);
   const [poolTopic, setPoolTopic] = useState("default");
   const [script, setScript] = useState<DetailedScript | null>(null);
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
@@ -55,14 +65,10 @@ export default function PlannerPage() {
   }
 
   async function generateOneScript() {
-    const referenceVideos = referenceVideosText
-      .split(/\n/)
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .slice(0, 3);
+    const referenceVideoUrls = referenceVideos.map((v) => v.url);
 
-    if (!referenceVideos.length) {
-      setError("请先在参考视频池里放入1-3条视频再生成");
+    if (!referenceVideoUrls.length) {
+      setError("请先在参考视频池里添加1-3条视频再生成");
       return;
     }
 
@@ -81,7 +87,7 @@ export default function PlannerPage() {
           narrativeStructure,
           toneStyle,
           paceLevel,
-          referenceVideos,
+          referenceVideos: referenceVideoUrls,
           variationNonce: Date.now(),
           language: "zh",
         }),
@@ -123,8 +129,8 @@ export default function PlannerPage() {
   function savePoolByTopic() {
     const key = poolTopic.trim() || "default";
     const raw = window.localStorage.getItem("tcos_reference_pools");
-    const map = raw ? (JSON.parse(raw) as Record<string, string>) : {};
-    map[key] = referenceVideosText;
+    const map = raw ? (JSON.parse(raw) as Record<string, VideoInfo[]>) : {};
+    map[key] = referenceVideos;
     window.localStorage.setItem("tcos_reference_pools", JSON.stringify(map));
     alert(`已保存主题参考池：${key}`);
   }
@@ -132,12 +138,12 @@ export default function PlannerPage() {
   function loadPoolByTopic() {
     const key = poolTopic.trim() || "default";
     const raw = window.localStorage.getItem("tcos_reference_pools");
-    const map = raw ? (JSON.parse(raw) as Record<string, string>) : {};
-    setReferenceVideosText(map[key] || "");
+    const map = raw ? (JSON.parse(raw) as Record<string, VideoInfo[]>) : {};
+    setReferenceVideos(map[key] || []);
   }
 
   function clearPool() {
-    setReferenceVideosText("");
+    setReferenceVideos([]);
     window.localStorage.removeItem("tcos_reference_videos");
   }
 
@@ -146,13 +152,20 @@ export default function PlannerPage() {
     const cached = typeof window !== "undefined" ? window.localStorage.getItem("tcos_reference_videos") : null;
     if (cached) {
       try {
-        const arr = JSON.parse(cached) as string[];
-        if (Array.isArray(arr) && arr.length) setReferenceVideosText(arr.slice(0, 3).join("\n"));
+        const arr = JSON.parse(cached) as VideoInfo[];
+        if (Array.isArray(arr) && arr.length) setReferenceVideos(arr.slice(0, 3));
       } catch {
         // ignore bad cache
       }
     }
   }, []);
+
+  // 自动保存参考视频池到 localStorage
+  useEffect(() => {
+    if (referenceVideos.length > 0) {
+      window.localStorage.setItem("tcos_reference_videos", JSON.stringify(referenceVideos));
+    }
+  }, [referenceVideos]);
 
   return (
     <main className="min-h-screen bg-zinc-50 p-6 text-zinc-900 md:p-8">
@@ -228,15 +241,9 @@ export default function PlannerPage() {
                 <option value="快">快</option>
               </select>
             </label>
-            <label className="space-y-1 md:col-span-6">
-              <span className="text-xs text-zinc-500">参考视频池（每行1条，先从发现页加入，最多3条）</span>
-              <textarea
-                value={referenceVideosText}
-                onChange={(e) => setReferenceVideosText(e.target.value)}
-                className="min-h-20 w-full rounded border border-zinc-300 px-2 py-1 text-sm"
-                placeholder="示例：Rain Sounds for Sleep - https://youtube.com/..."
-              />
-            </label>
+            <div className="md:col-span-6">
+              <ReferenceVideoPool videos={referenceVideos} onChange={setReferenceVideos} maxVideos={3} />
+            </div>
             <div className="md:col-span-6 flex flex-wrap items-center gap-2 text-xs">
               <span className="text-zinc-500">表达语气：</span>
               {[
